@@ -66,13 +66,14 @@ export const FortyAlfaTop = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`https://lluui.vercel.app/api/predict?page=4`);
+            const ts = Date.now();
+            const res = await fetch(`https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?ts=${ts}&pageSize=60&pageNo=1`, { cache: "no-store" });
             if (!res.ok) throw new Error('API failure');
 
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Server error');
+            if (!data?.data?.list?.length) throw new Error('Failed to fetch draw data');
 
-            const list = data.list || [];
+            const list = data.data.list;
             if (list.length < 2) return;
 
             const current = list[0];

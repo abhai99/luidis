@@ -75,18 +75,120 @@ export const EightVoteAI = () => {
 
     const fetchPrediction = async (isInitial = false) => {
         try {
-            const res = await fetch(`https://lluui.vercel.app/api/predict?page=1`);
+            const ts = Date.now();
+            const res = await fetch(`https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?ts=${ts}&pageSize=60&pageNo=1`, { cache: "no-store" });
             if (!res.ok) throw new Error('API request failed');
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Server error');
+            if (!data?.data?.list?.length) throw new Error('Failed to fetch draw data');
 
-            const serverPeriodStr = data.serverPeriodStr;
+            const list = data.data.list;
+            const latest = list[0];
+            const serverPeriodStr = latest.issueNumber;
             const shortIssue = serverPeriodStr.slice(-5);
-            const actualNum = data.resultNum;
-            const actualOutcome = data.outcome; // "Big" or "Small"
-            const actualSizeSymbol = actualOutcome === 'Big' ? 'B' : 'S';
+            const actualNum = parseInt(latest.number);
+            const actualOutcome = actualNum >= 5 ? "Big" : "Small";
 
             if (serverPeriodStr === lastKnownPeriodRef.current) return;
+
+            // Reconstruct array from oldest to newest to train weights
+            const historyList = [...list].reverse();
+            const zHistory = historyList.map((item: any) => parseInt(item.number) < 5 ? 'S' : 'B');
+            const nHistory = historyList.map((item: any) => parseInt(item.number));
+
+            const get85Predictions = (n: number[], z: string[]): string[] => {
+                const preds: string[] = [];
+                const getNG = (d: number): string => {
+                    const pat = z.slice(0, d).join('');
+                    for (let i = 1; i < z.length - d; i++) {
+                        if (z.slice(i, i + d).join('') === pat) return z[i - 1];
+                    }
+                    return z[0];
+                };
+
+                for (let i = 0; i < 10; i++) preds.push(z[i] || z[0]);
+
+                const kValues = [3, 5, 7, 10, 15, 20, 25, 30, 40, 50];
+                kValues.forEach(k => {
+                    preds.push(z.slice(0, k).filter(x => x === 'B').length > k / 2 ? 'S' : 'B');
+                });
+
+                for (let d = 2; d <= 11; d++) preds.push(getNG(d));
+
+                const n1 = n[0] || 0, n2 = n[1] || 0, n3 = n[2] || 0, n4 = n[3] || 0;
+                const s1 = z[0] || 'B', s2 = z[1] || 'B', s3 = z[2] || 'B';
+
+                preds.push(((n1 ^ n2) % 10) < 5 ? 'S' : 'B');
+                preds.push(((n1 ^ n2 ^ n3) % 10) < 5 ? 'S' : 'B');
+                preds.push(((n1 ^ n2 ^ n3 ^ n4) % 10) < 5 ? 'S' : 'B');
+                preds.push(((n1 + n2) % 10) < 5 ? 'S' : 'B');
+                preds.push((Math.abs(n1 - n2)) < 5 ? 'S' : 'B');
+                preds.push(((n1 * n2) % 10) < 5 ? 'S' : 'B');
+                preds.push(Math.round((n1 + n2) / 2) < 5 ? 'S' : 'B');
+                preds.push(((n1 + n2 + n3) % 10) < 5 ? 'S' : 'B');
+                preds.push(((n1 * 3 + n2) % 10) < 5 ? 'S' : 'B');
+                preds.push(Math.floor(n1 * 1.618) % 10 < 5 ? 'S' : 'B');
+                preds.push((n1 + n2) % 7 < 4 ? 'S' : 'B');
+                preds.push(((n1 << 1) % 10) < 5 ? 'S' : 'B');
+                preds.push((9 - n1) < 5 ? 'S' : 'B');
+                preds.push(n1 > n2 ? 'B' : 'S');
+                preds.push(n2 > n3 ? 'B' : 'S');
+
+                preds.push(n1 % 2 === 0 ? 'S' : 'B');
+                preds.push((n1 + n2) % 2 === 0 ? 'S' : 'B');
+                preds.push(s1 !== s2 ? s1 : (s1 === 'B' ? 'S' : 'B'));
+                preds.push(s1 === s2 ? (s1 === 'B' ? 'S' : 'B') : s1);
+                preds.push([0, 1, 8, 9].includes(n1) ? (s1 === 'B' ? 'S' : 'B') : s1);
+                preds.push([0, 5].includes(n1) || [0, 5].includes(n2) ? 'S' : 'B');
+                preds.push(s1 === s2 && s2 === s3 ? (s1 === 'B' ? 'S' : 'B') : s1);
+                preds.push(n1 === n2 ? (s1 === 'B' ? 'S' : 'B') : s1);
+                preds.push(s1 !== s2 && s2 !== s3 ? (s1 === 'B' ? 'S' : 'B') : s1);
+                preds.push(z.filter(x => x === 'B').length > z.length / 2 ? 'S' : 'B');
+
+                for (let i = 1; i <= 30; i++) {
+                    preds.push(((n1 * i + n2 * (i + 1) + n3) % 10) < 5 ? 'S' : 'B');
+                }
+
+                return preds;
+            };
+
+            // Run weight training loop on history
+            let engineWeights = Array(85).fill(1);
+            for (let i = 20; i < historyList.length; i++) {
+                const nSlice = nHistory.slice(0, i).reverse();
+                const zSlice = zHistory.slice(0, i).reverse();
+                const actualSize = zHistory[i];
+
+                const enginePreds = get85Predictions(nSlice, zSlice);
+                for (let j = 0; j < 85; j++) {
+                    if (enginePreds[j] === actualSize) {
+                        engineWeights[j] = Math.min(engineWeights[j] + 1, 5);
+                    } else {
+                        engineWeights[j] = Math.max(engineWeights[j] - 1, 0);
+                    }
+                }
+            }
+
+            // Generate prediction for next
+            const latestN = [...nHistory].reverse();
+            const latestZ = [...zHistory].reverse();
+            const finalEnginePreds = get85Predictions(latestN, latestZ);
+
+            let votesB = 0;
+            let votesS = 0;
+            let activeWeightSum = 0;
+            let activeCount = 0;
+
+            for (let j = 0; j < 85; j++) {
+                const w = engineWeights[j];
+                if (w > 0) {
+                    activeCount++;
+                    activeWeightSum += w;
+                    if (finalEnginePreds[j] === 'B') votesB += w;
+                    else votesS += w;
+                }
+            }
+
+            const engRes = finalEnginePreds.map((val, idx) => ({ val, w: engineWeights[idx] }));
 
             // Update stats logic for previous prediction
             const prevPred = activePredictionRef.current;
@@ -146,14 +248,13 @@ export const EightVoteAI = () => {
             lastKnownPeriodRef.current = serverPeriodStr;
 
             // Set dynamic engines state
-            setEngines(data.engRes);
-            const activeCount = data.engRes.filter((e: any) => e.w > 0).length;
+            setEngines(engRes);
             setActiveLink(`${activeCount} Active`);
 
             // Apply skips & inversions client-side
             const nextIssue = String(BigInt(serverPeriodStr) + 1n).slice(-5);
-            const votes = { B: data.votesB, S: data.votesS };
-            const threshold = data.activeWeightSum * 0.6;
+            const votes = { B: votesB, S: votesS };
+            const threshold = activeWeightSum * 0.6;
 
             let crowdConsensus = "SKIP";
             if (isSkipMode) {

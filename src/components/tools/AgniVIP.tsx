@@ -29,14 +29,15 @@ export const AgniVIP = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`https://lluui.vercel.app/api/predict?page=2`);
+            const ts = Date.now();
+            const res = await fetch(`https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?ts=${ts}&pageSize=60&pageNo=1`, { cache: "no-store" });
             if (!res.ok) throw new Error('API failure');
             
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Server error');
+            if (!data?.data?.list?.length) throw new Error('Failed to fetch draw data');
 
-            const latestIssue = data.serverPeriodStr;
-            const list = data.list || [];
+            const list = data.data.list;
+            const latestIssue = list[0].issueNumber;
 
             if (latestIssue === lastFetchedIssueRef.current) return;
 
@@ -81,7 +82,60 @@ export const AgniVIP = () => {
             }
 
             // Save new prediction details
-            const serverPred = data.prediction;
+            const sizes = list.slice(0, 10).map((x: any) => parseInt(x.number) >= 5 ? "Big" : "Small");
+            const last4 = sizes.slice(0, 4);
+            const shape = last4.join("");
+
+            let serverPred = "WAIT";
+            let reasonText = "follow trend";
+
+            if (shape === "BigSmallBigSmall" || shape === "SmallBigSmallBig") {
+                serverPred = "WAIT";
+                reasonText = "chaos detect";
+            } else if (last4.every((x: string) => x === "Big")) {
+                const bigCount = sizes.filter((x: string) => x === "Big").length;
+                if (bigCount >= 8) {
+                    serverPred = "Small";
+                    reasonText = "mean reversion";
+                } else {
+                    serverPred = "Big";
+                    reasonText = "trend following";
+                }
+            } else if (last4.every((x: string) => x === "Small")) {
+                const smallCount = sizes.filter((x: string) => x === "Small").length;
+                if (smallCount >= 8) {
+                    serverPred = "Big";
+                    reasonText = "mean reversion";
+                } else {
+                    serverPred = "Small";
+                    reasonText = "trend following";
+                }
+            } else {
+                const big = sizes.filter((x: string) => x === "Big").length;
+                const small = sizes.filter((x: string) => x === "Small").length;
+                if (big >= 7) {
+                    serverPred = "Small";
+                    reasonText = "imbalance reversion";
+                } else if (small >= 7) {
+                    serverPred = "Big";
+                    reasonText = "imbalance reversion";
+                } else {
+                    const last6 = sizes.slice(0, 6);
+                    const recentBig = last6.filter((x: string) => x === "Big").length;
+                    const recentSmall = last6.filter((x: string) => x === "Small").length;
+                    if (recentBig >= 5) {
+                        serverPred = "Small";
+                        reasonText = "pressure reversion";
+                    } else if (recentSmall >= 5) {
+                        serverPred = "Big";
+                        reasonText = "pressure reversion";
+                    } else {
+                        serverPred = sizes[0];
+                        reasonText = "fallback trend";
+                    }
+                }
+            }
+
             setPrediction(serverPred);
             currentPredictionRef.current = serverPred;
 
@@ -92,7 +146,7 @@ export const AgniVIP = () => {
             setNextIssue(nextIssueStr.slice(-5));
 
             lastFetchedIssueRef.current = latestIssue;
-            setStatusText(`Updated: ${new Date().toLocaleTimeString()}`);
+            setStatusText(`Updated: ${new Date().toLocaleTimeString()} (${reasonText})`);
 
         } catch (error) {
             setStatusText("Fetch error...");

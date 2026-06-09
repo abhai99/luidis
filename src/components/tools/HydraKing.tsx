@@ -103,14 +103,15 @@ export const HydraKing = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`https://lluui.vercel.app/api/predict?page=5`);
+            const ts = Date.now();
+            const res = await fetch(`https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?ts=${ts}&pageSize=60&pageNo=1`, { cache: "no-store" });
             if (!res.ok) throw new Error('API request failed');
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Server error');
+            if (!data?.data?.list?.length) throw new Error('Failed to fetch draw data');
 
-            const latestDrawIssue = data.serverPeriodStr;
-            const drawNum = data.resultNum;
-            const list = data.list || [];
+            const list = data.data.list;
+            const latestDrawIssue = list[0].issueNumber;
+            const drawNum = parseInt(list[0].number);
 
             let apiIssues = list.map((item: any) => item.issueNumber).reverse();
             let apiHistory = list.map((item: any) => parseInt(item.number)).reverse();
@@ -151,17 +152,162 @@ export const HydraKing = () => {
             // Update recent results bubbles (last 24)
             setRecentResults(gameHistoryRef.current.slice(-24));
 
+            // Run hydra prediction calculations client-side
+            const history = list.map((item: any) => parseInt(item.number)).reverse(); // oldest to newest
+
+            const runBasePrediction = (hist: number[], prevPreds: { pred: string; win: boolean }[]) => {
+                if (hist.length < 5) return 'WAIT';
+                const seq = hist.map(n => n >= 5 ? 'B' : 'S');
+                const lastType = seq[seq.length - 1];
+
+                let streak = 1;
+                for (let i = seq.length - 2; i >= 0; i--) {
+                    if (seq[i] === lastType) streak++; else break;
+                }
+
+                let chopCount = 0;
+                for (let i = seq.length - 1; i >= Math.max(1, seq.length - 5); i--) {
+                    if (seq[i] !== seq[i - 1]) chopCount++;
+                }
+                const isChopping = chopCount >= 3;
+
+                let nGramPred = null;
+                let nGramConf = 0;
+
+                if (seq.length >= 4) {
+                    const g3 = seq.slice(-3).join('');
+                    let g3Stats = { B: 0, S: 0 };
+                    for (let i = 3; i < seq.length - 1; i++) {
+                        if (seq.slice(i - 3, i).join('') === g3) {
+                            if (seq[i] === 'B') g3Stats.B++; else g3Stats.S++;
+                        }
+                    }
+
+                    if (g3Stats.B + g3Stats.S >= 2) {
+                        const total = g3Stats.B + g3Stats.S;
+                        const diff = Math.abs(g3Stats.B - g3Stats.S);
+                        if (diff / total >= 0.6) {
+                            nGramPred = g3Stats.B > g3Stats.S ? 'BIG' : 'SMALL';
+                            nGramConf = (Math.max(g3Stats.B, g3Stats.S) / total) * 100;
+                        }
+                    }
+                }
+
+                if (!nGramPred && seq.length >= 3) {
+                    const g2 = seq.slice(-2).join('');
+                    let g2Stats = { B: 0, S: 0 };
+                    for (let i = 2; i < seq.length - 1; i++) {
+                        if (seq.slice(i - 2, i).join('') === g2) {
+                            if (seq[i] === 'B') g2Stats.B++; else g2Stats.S++;
+                        }
+                    }
+                    if (g2Stats.B + g2Stats.S >= 3) {
+                        const total = g2Stats.B + g2Stats.S;
+                        const diff = Math.abs(g2Stats.B - g2Stats.S);
+                        if (diff / total >= 0.6) {
+                            nGramPred = g2Stats.B > g2Stats.S ? 'BIG' : 'SMALL';
+                            nGramConf = (Math.max(g2Stats.B, g2Stats.S) / total) * 100;
+                        }
+                    }
+                }
+
+                let consecutiveLossesVal = 0;
+                for (let i = 0; i < prevPreds.length; i++) {
+                    if (!prevPreds[i].win) consecutiveLossesVal++;
+                    else break;
+                }
+
+                let finalPred = null;
+                let baseConf = 50;
+                let reasonStr = "";
+                let modelsArr = [];
+                let isDefenseVal = false;
+
+                if (consecutiveLossesVal >= 2) {
+                    const last6 = seq.slice(-6);
+                    const bCount = last6.filter(x => x === 'B').length;
+                    finalPred = bCount >= 3 ? 'SMALL' : 'BIG';
+                    baseConf = 45;
+                    reasonStr = "⚠️ DEFENSE MODE: PRNG Noise Detected";
+                    modelsArr.push("Mean Reversion");
+                    isDefenseVal = true;
+                }
+                else if (streak >= 3) {
+                    finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+                    baseConf = 65 + (streak * 5);
+                    reasonStr = `Streak Breaker (${streak}x)`;
+                    modelsArr.push("Streak Breaker");
+                }
+                else if (isChopping) {
+                    finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+                    baseConf = 72;
+                    reasonStr = "Chop Rider (Alternating)";
+                    modelsArr.push("Chop Rider");
+                }
+                else if (nGramPred) {
+                    finalPred = nGramPred;
+                    baseConf = nGramConf;
+                    reasonStr = `Conflict-Free N-Gram (${nGramConf.toFixed(0)}%)`;
+                    modelsArr.push("N-Gram");
+                }
+                else {
+                    finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+                    baseConf = 55;
+                    reasonStr = "Baseline Reversion";
+                    modelsArr.push("Baseline");
+                }
+
+                baseConf -= (consecutiveLossesVal * 12);
+                let confidence = Math.round(Math.max(40, Math.min(88, baseConf)));
+
+                return {
+                    prediction: finalPred,
+                    confidence: confidence,
+                    reason: reasonStr,
+                    numbers: finalPred === 'BIG' ? [5, 6, 7, 8, 9] : [0, 1, 2, 3, 4],
+                    models: modelsArr.join(', '),
+                    streak: streak,
+                    chop: chopCount,
+                    consecutiveLosses: consecutiveLossesVal,
+                    isDefense: isDefenseVal
+                };
+            };
+
+            // Backtest to count consecutiveLosses
+            let simulatedHistoryPreds: { pred: string; win: boolean }[] = [];
+            for (let i = 15; i < history.length; i++) {
+                const subHistory = history.slice(0, i);
+                const actualVal = history[i];
+                const actualType = actualVal >= 5 ? 'BIG' : 'SMALL';
+                const runResult = runBasePrediction(subHistory, simulatedHistoryPreds);
+                
+                if (typeof runResult === 'object' && runResult !== null && runResult.prediction !== 'WAIT') {
+                    const win = (runResult.prediction === actualType);
+                    simulatedHistoryPreds.unshift({ pred: runResult.prediction, win });
+                }
+            }
+
+            // Get current active consecutiveLosses
+            let consecutiveLosses = 0;
+            for (let i = 0; i < simulatedHistoryPreds.length; i++) {
+                if (!simulatedHistoryPreds[i].win) consecutiveLosses++;
+                else break;
+            }
+
+            // Predict Next Period
+            const predData = runBasePrediction(history, simulatedHistoryPreds);
+
             // Set current prediction
             const nextPred = {
-                prediction: data.prediction,
-                confidence: data.confidence,
-                reason: data.reason,
-                numbers: data.numbers,
-                models: data.models,
-                streak: data.streak,
-                chop: data.chop,
-                consecutiveLosses: data.consecutiveLosses,
-                isDefense: data.isDefense
+                prediction: typeof predData === 'object' ? predData.prediction : 'WAIT',
+                confidence: typeof predData === 'object' ? predData.confidence : 0,
+                reason: typeof predData === 'object' ? predData.reason : 'Warming up...',
+                numbers: typeof predData === 'object' ? predData.numbers : [],
+                models: typeof predData === 'object' ? predData.models : 'Baseline',
+                streak: typeof predData === 'object' ? predData.streak : 0,
+                chop: typeof predData === 'object' ? predData.chop : 0,
+                consecutiveLosses,
+                isDefense: typeof predData === 'object' ? predData.isDefense : false
             };
             setPrediction(nextPred);
             lastPredictionRef.current = nextPred;

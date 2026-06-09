@@ -58,18 +58,20 @@ export const UltraGold = () => {
 
     const fetchHistoryData = async (isFirstLoad = false) => {
         try {
-            const res = await fetch(`https://lluui.vercel.app/api/predict?page=3`);
+            const ts = Date.now();
+            const res = await fetch(`https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?ts=${ts}&pageSize=60&pageNo=1`, { cache: "no-store" });
             if (!res.ok) throw new Error('API failure');
             
             const data = await res.json();
-            if (!data.success) throw new Error(data.error || 'Server error');
+            if (!data?.data?.list?.length) throw new Error('Failed to fetch draw data');
 
-            const newestDraw = data.list[0];
+            const list = data.data.list;
+            const newestDraw = list[0];
             const latestIssue = newestDraw.issueNumber;
 
             if (isFirstLoad) {
                 // Back-test from server list (newest to oldest)
-                const reversedList = [...data.list].reverse(); // oldest to newest
+                const reversedList = [...list].reverse(); // oldest to newest
                 const backtestHistory: HistoryRow[] = [];
 
                 for (let i = 0; i < reversedList.length - 1; i++) {
@@ -135,13 +137,17 @@ export const UltraGold = () => {
             // Set up next prediction
             lastProcessedIssueRef.current = latestIssue;
             const nextIssueString = String(BigInt(latestIssue) + 1n);
-            const predNums = data.predNumbers;
-            const predSize = data.predSize;
+            
+            const lastDigitOfIssue = parseInt(latestIssue.slice(-1));
+            const lastDrawnNumber = parseInt(newestDraw.number);
+            const P = (lastDrawnNumber + lastDigitOfIssue) % 10;
+            const predNums = [(P - 1 + 10) % 10, P, (P + 1) % 10];
+            const predSize = P >= 5 ? 'BIG' : 'SMALL';
 
             const nextPred = {
                 targetIssue: nextIssueString,
                 numbers: predNums,
-                size: predSize
+                size: predSize as 'BIG' | 'SMALL'
             };
 
             setPendingPrediction(nextPred);
