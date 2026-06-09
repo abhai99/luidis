@@ -252,7 +252,9 @@ const Index = () => {
               };
 
               // Logic: If title exists AND content exists -> Active.
-              const isActive = !!(pageData?.title && pageData?.content);
+              // Pages 1-5 are native built-in secure prediction tools, so they are always active.
+              const isNativeTool = [1, 2, 3, 4, 5].includes(num);
+              const isActive = isNativeTool || !!(pageData?.title && pageData?.content);
               const title = pageData?.title || `Tool ${num}`;
 
               return (

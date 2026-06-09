@@ -1,22 +1,22 @@
 export const defaultPages = {
     page1: {
-        title: "PEARL NUM",
+        title: "80-vote AI",
         content: "",
     },
     page2: {
-        title: "S/M GOLD",
+        title: "Agni VIP",
         content: "",
     },
     page3: {
-        title: "Dual core",
+        title: "ULTRA GOld",
         content: "",
     },
     page4: {
-        title: "Evening bet",
+        title: "40-Alfa TOP",
         content: "",
     },
     page5: {
-        title: "Page 5",
+        title: "HYDRA KING",
         content: ""
     }
 };
