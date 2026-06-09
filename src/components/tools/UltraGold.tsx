@@ -58,7 +58,7 @@ export const UltraGold = () => {
 
     const fetchHistoryData = async (isFirstLoad = false) => {
         try {
-            const res = await fetch(`/api/predict?page=3`);
+            const res = await fetch(`https://lluui.vercel.app/api/predict?page=3`);
             if (!res.ok) throw new Error('API failure');
             
             const data = await res.json();

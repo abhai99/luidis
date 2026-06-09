@@ -103,7 +103,7 @@ export const HydraKing = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`/api/predict?page=5`);
+            const res = await fetch(`https://lluui.vercel.app/api/predict?page=5`);
             if (!res.ok) throw new Error('API request failed');
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Server error');

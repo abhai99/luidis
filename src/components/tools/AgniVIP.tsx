@@ -29,7 +29,7 @@ export const AgniVIP = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`/api/predict?page=2`);
+            const res = await fetch(`https://lluui.vercel.app/api/predict?page=2`);
             if (!res.ok) throw new Error('API failure');
             
             const data = await res.json();

@@ -66,7 +66,7 @@ export const FortyAlfaTop = () => {
 
     const fetchHistoryData = async () => {
         try {
-            const res = await fetch(`/api/predict?page=4`);
+            const res = await fetch(`https://lluui.vercel.app/api/predict?page=4`);
             if (!res.ok) throw new Error('API failure');
 
             const data = await res.json();
