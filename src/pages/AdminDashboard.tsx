@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, DollarSign, TrendingUp, Settings, Save, FileText, Lock, Layout } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Settings, Save, FileText, Lock, Layout, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -32,6 +32,7 @@ export const AdminDashboard = () => {
 
     // User Data State
     const [users, setUsers] = useState<any[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState({
         totalUsers: 0,
         totalRevenue: 0,
@@ -233,6 +234,14 @@ export const AdminDashboard = () => {
         );
     }
 
+    // Filter users by search term (search by gmail/email or name)
+    const filteredUsers = users.filter(user => {
+        const email = user.email || '';
+        const name = user.displayName || '';
+        const term = searchTerm.toLowerCase();
+        return email.toLowerCase().includes(term) || name.toLowerCase().includes(term);
+    });
+
     return (
         <div className="min-h-screen bg-background p-8">
             <div className="max-w-6xl mx-auto space-y-8">
@@ -298,8 +307,31 @@ export const AdminDashboard = () => {
                         </div>
 
                         {/* Users Table */}
-                        <Card className="p-6">
-                            <h3 className="text-xl font-bold mb-4">Subscriber List</h3>
+                        <Card className="p-6 space-y-4">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-foreground">Subscriber List</h3>
+                                    <p className="text-sm text-muted-foreground">Manage active subscribers and manual activations.</p>
+                                </div>
+                                <div className="relative w-full md:w-72">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by Gmail/Email..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-9 pr-8"
+                                    />
+                                    {searchTerm && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchTerm('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-semibold"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-muted/50 text-muted-foreground uppercase">
@@ -315,7 +347,7 @@ export const AdminDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {users.map((user, idx) => {
+                                        {filteredUsers.map((user, idx) => {
                                             const isSub = user.subscription?.isSubscribed;
                                             const daysLeft = isSub ? Math.ceil((new Date(user.subscription.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
                                             return (
@@ -351,9 +383,11 @@ export const AdminDashboard = () => {
                                                 </tr>
                                             );
                                         })}
-                                        {users.length === 0 && (
+                                        {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={7} className="text-center py-4 text-muted-foreground">No users found yet.</td>
+                                                <td colSpan={7} className="text-center py-6 text-muted-foreground">
+                                                    {users.length === 0 ? "No users found yet." : `No users matching "${searchTerm}"`}
+                                                </td>
                                             </tr>
                                         )}
                                     </tbody>
