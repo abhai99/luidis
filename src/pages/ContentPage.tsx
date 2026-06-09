@@ -4,15 +4,33 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { defaultPages } from '@/lib/defaultContent';
+import { useAuth } from '@/contexts/AuthContext';
+import { PrecisionOracle } from '@/components/tools/PrecisionOracle';
+import { LiveMinuteCalculation } from '@/components/tools/LiveMinuteCalculation';
+import { DualCoreFormula } from '@/components/tools/DualCoreFormula';
+import { ThreeStrategyConsensus } from '@/components/tools/ThreeStrategyConsensus';
+import { toast } from 'sonner';
 
 const ContentPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user, subscription, loading: authLoading } = useAuth();
+    
     const [content, setContent] = useState<string | null>(null);
     const [title, setTitle] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+
+    // Enforce Route Guard: redirect to home if not subscribed
+    useEffect(() => {
+        if (!authLoading) {
+            if (!user || !subscription?.isSubscribed) {
+                toast.error("Subscription required to view this prediction tool.");
+                navigate('/', { replace: true });
+            }
+        }
+    }, [user, subscription, authLoading, navigate]);
 
     useEffect(() => {
         const fetchContent = async () => {
@@ -35,7 +53,6 @@ const ContentPage = () => {
                 // 2. Fallback to Default Content if not in Firestore
                 if (!foundContent && id) {
                     const pageKey = `page${id}`; // e.g. "page1"
-                    // Use type assertion to access the object securely
                     const defaultPage = defaultPages[pageKey as keyof typeof defaultPages];
                     if (defaultPage) {
                         foundContent = defaultPage.content;
@@ -58,15 +75,13 @@ const ContentPage = () => {
         fetchContent();
     }, [id]);
 
-    // Execute scripts found in the content
+    // Execute custom scripts if raw HTML content is rendered
     useEffect(() => {
-        if (!content) return;
+        if (!content || ['1', '2', '3', '4'].includes(id || '')) return;
 
-        // Find the container
         const container = document.getElementById('content-container');
         if (!container) return;
 
-        // Find all script tags
         const scripts = container.getElementsByTagName('script');
 
         Array.from(scripts).forEach(script => {
@@ -81,22 +96,25 @@ const ContentPage = () => {
                 newScript.src = script.src;
             }
 
-            // Execute
             script.parentNode?.replaceChild(newScript, script);
         });
-    }, [content]);
+    }, [content, id]);
 
-    if (loading) {
+    if (loading || authLoading) {
         return (
-            <div className="min-h-screen gradient-hero flex items-center justify-center">
+            <div className="min-h-screen bg-[#050505] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
 
-    if (!content) {
+    if (!user || !subscription?.isSubscribed) {
+        return null; // Redirecting...
+    }
+
+    if (!content && !['1', '2', '3', '4'].includes(id || '')) {
         return (
-            <div className="min-h-screen gradient-hero pt-32 px-4 text-center">
+            <div className="min-h-screen bg-[#050505] pt-32 px-4 text-center text-white">
                 <Navbar />
                 <h1 className="text-2xl font-bold mb-4">Content Not Found</h1>
                 <Button onClick={() => navigate('/')}>Go Home</Button>
@@ -104,20 +122,43 @@ const ContentPage = () => {
         );
     }
 
+    const renderTool = () => {
+        switch (id) {
+            case '1':
+                return <PrecisionOracle />;
+            case '2':
+                return <LiveMinuteCalculation />;
+            case '3':
+                return <DualCoreFormula />;
+            case '4':
+                return <ThreeStrategyConsensus />;
+            default:
+                return (
+                    <div
+                        id="content-container"
+                        className="w-full h-full [&>div]:w-full [&>div]:max-w-none [&_iframe]:w-full [&_iframe]:aspect-video"
+                        dangerouslySetInnerHTML={{ __html: content || '' }}
+                    />
+                );
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col">
-            {/* Minimal Sticky Header for App feel - UPDATE: No Back Button, Small Bold Title */}
-            <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/10 px-4 h-10 flex items-center justify-center">
-                <h1 className="text-sm font-bold text-center truncate">{title || 'Content'}</h1>
+        <div className="min-h-screen bg-[#050505] text-foreground flex flex-col pb-16">
+            {/* Minimal Sticky Header for App feel */}
+            <div className="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-zinc-900 px-4 h-10 flex items-center justify-center">
+                <h1 className="text-sm font-bold text-center truncate text-white">
+                    {id === '1' ? 'Precision Oracle' : 
+                     id === '2' ? 'Live Minute Calculation' : 
+                     id === '3' ? 'Dual-Core Formula' : 
+                     id === '4' ? 'Three-Strategy Consensus' : 
+                     title || 'Content'}
+                </h1>
             </div>
 
-            {/* Full Width Content Area - UPDATE: Zero Padding/Margin */}
-            <div className="flex-1 w-full h-full">
-                <div
-                    id="content-container"
-                    className="w-full h-full [&>div]:w-full [&>div]:max-w-none [&_iframe]:w-full [&_iframe]:aspect-video"
-                    dangerouslySetInnerHTML={{ __html: content }}
-                />
+            {/* Tool Render Area */}
+            <div className="flex-1 w-full h-full flex items-center justify-center">
+                {renderTool()}
             </div>
         </div>
     );
