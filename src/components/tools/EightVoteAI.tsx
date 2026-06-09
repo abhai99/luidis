@@ -13,9 +13,9 @@ interface HistoryRow {
 
 export const EightVoteAI = () => {
     // Settings & State
-    const [isSkipMode, setIsSkipMode] = useState<boolean>(() => localStorage.getItem('isSkipMode') !== 'false');
-    const [isInverseMode, setIsInverseMode] = useState<boolean>(() => localStorage.getItem('isInverseMode') !== 'false');
-    const [soundEnabled, setSoundEnabled] = useState(false);
+    const [isSkipMode, setIsSkipMode] = useState<boolean>(false);
+    const [isInverseMode, setIsInverseMode] = useState<boolean>(true);
+    const [soundEnabled, setSoundEnabled] = useState(true);
     
     // UI state
     const [timerText, setTimerText] = useState('00s');
@@ -268,45 +268,6 @@ export const EightVoteAI = () => {
                     <span className={`h-2.5 w-2.5 rounded-full animate-ping ${isInverseMode ? 'bg-pink-500 shadow-[0_0_10px_#ec4899]' : 'bg-cyan-500 shadow-[0_0_10px_#06b6d4]'}`} />
                     Liquid Neural V6.0
                 </h2>
-                <Button
-                    onClick={toggleSound}
-                    variant="outline"
-                    className={`text-xs font-bold border-zinc-800 ${soundEnabled ? 'text-green-400 border-green-500/30 bg-green-500/5' : 'text-zinc-500'}`}
-                >
-                    {soundEnabled ? '🔊 Sound On' : '🔇 Sound Off'}
-                </Button>
-            </div>
-
-            {/* Toggle Toggles */}
-            <div className="space-y-2">
-                <div className="flex gap-2">
-                    <Button
-                        onClick={() => handleSetMode(true)}
-                        className={`flex-1 h-9 text-[11px] font-black rounded-lg ${isSkipMode ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-950 border border-zinc-800 text-zinc-500'}`}
-                    >
-                        🛡️ SAFE (Skip)
-                    </Button>
-                    <Button
-                        onClick={() => handleSetMode(false)}
-                        className={`flex-1 h-9 text-[11px] font-black rounded-lg ${!isSkipMode ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-zinc-950 border border-zinc-800 text-zinc-500'}`}
-                    >
-                        🚀 ACTION (No Skip)
-                    </Button>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        onClick={() => handleSetInverse(true)}
-                        className={`flex-1 h-9 text-[11px] font-black rounded-lg ${isInverseMode ? 'bg-pink-500/10 text-pink-400 border border-pink-500/30' : 'bg-zinc-950 border border-zinc-800 text-zinc-500'}`}
-                    >
-                        ⚡ INVERSE ON
-                    </Button>
-                    <Button
-                        onClick={() => handleSetInverse(false)}
-                        className={`flex-1 h-9 text-[11px] font-black rounded-lg ${!isInverseMode ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'bg-zinc-950 border border-zinc-800 text-zinc-500'}`}
-                    >
-                        ✅ INVERSE OFF
-                    </Button>
-                </div>
             </div>
 
             {/* Target timer bar */}

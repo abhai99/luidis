@@ -195,10 +195,10 @@ export const FortyAlfaTop = () => {
             <Card className="bg-[#141c24] border-white/5 p-4 flex justify-between items-center shadow-lg">
                 <div className="text-left">
                     <span className="text-[10px] text-zinc-500 font-bold uppercase block tracking-wider">Current Period</span>
-                    <div className="text-xl font-extrabold mt-0.5">{period}</div>
+                    <div className="text-xl font-extrabold mt-0.5 text-white">{period}</div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="text-3xl font-black tracking-wider font-mono">{number}</div>
+                    <div className="text-3xl font-black tracking-wider font-mono text-white">{number}</div>
                     <span className={`text-[10px] font-black uppercase py-1 px-3 border rounded-full ${
                         size === 'BIG' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-red-500/10 text-red-500 border-red-500/30'
                     }`}>
