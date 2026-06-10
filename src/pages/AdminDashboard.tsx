@@ -197,7 +197,7 @@ export const AdminDashboard = () => {
 
                     <form onSubmit={async (e) => {
                         e.preventDefault();
-                        if (adminPassword === 'admin123') {
+                        if (adminPassword === 'addy8811') {
                             setIsLoading(true);
                             try {
                                 // Real Firebase Auth (Required for Firestore Access)
