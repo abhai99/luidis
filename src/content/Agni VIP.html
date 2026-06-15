@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinGo 1 Minute (Agni VIP)</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#0f1115;
+    color:#fff;
+    padding:12px;
+}
+
+.container{
+    max-width:700px;
+    margin:auto;
+}
+
+.card{
+    background:#1a1d24;
+    border-radius:16px;
+    padding:15px;
+    margin-bottom:12px;
+    box-shadow:0 0 10px rgba(0,0,0,.4);
+}
+
+.title{
+    text-align:center;
+    font-size:30px;
+    font-weight:bold;
+    margin-bottom:14px;
+}
+
+.predictionBox{
+    background:#0c1016;
+    border-radius:14px;
+    padding:22px;
+    text-align:center;
+}
+
+.label{
+    color:#888;
+    font-size:15px;
+}
+
+.prediction{
+    font-size:42px;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+.big{
+    color:#00ff95;
+}
+
+.small{
+    color:#ff5b5b;
+}
+
+.wait{
+    color:#ffd54f;
+}
+
+.issue{
+    margin-top:8px;
+    color:#888;
+    font-size:14px;
+}
+
+.status{
+    text-align:center;
+    color:#888;
+    margin-top:12px;
+    font-size:13px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+.stat{
+    background:#0d1117;
+    border-radius:12px;
+    padding:16px;
+    text-align:center;
+}
+
+.stat h3{
+    color:#999;
+    margin-bottom:8px;
+    font-size:14px;
+}
+
+.stat p{
+    font-size:28px;
+    font-weight:bold;
+}
+
+.history{
+    overflow:auto;
+    max-height:500px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:10px;
+    text-align:center;
+    font-size:14px;
+}
+
+th{
+    background:#0d1117;
+    position:sticky;
+    top:0;
+}
+
+tr:nth-child(even){
+    background:#141922;
+}
+
+.win{
+    color:#00ff95;
+    font-weight:bold;
+}
+
+.loss{
+    color:#ff5b5b;
+    font-weight:bold;
+}
+
+.footer{
+    text-align:center;
+    color:#777;
+    margin-top:10px;
+    font-size:12px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <div class="title">
+            WinGo Auto Predictor
+        </div>
+
+        <div class="predictionBox">
+
+            <div class="label">
+                Next Prediction
+            </div>
+
+            <div class="prediction" id="prediction">
+                WAIT
+            </div>
+
+            <div class="issue">
+                Next Issue:
+                <span id="nextIssue">-----</span>
+            </div>
+
+        </div>
+
+        <div class="status" id="status">
+            Waiting fetch...
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="grid">
+
+            <div class="stat">
+                <h3>Total Wins</h3>
+                <p id="wins">0</p>
+            </div>
+
+            <div class="stat">
+                <h3>Total Loss</h3>
+                <p id="losses">0</p>
+            </div>
+
+            <div class="stat">
+                <h3>Win Rate</h3>
+                <p id="accuracy">0%</p>
+            </div>
+
+            <div class="stat">
+                <h3>Max Loss Streak</h3>
+                <p id="maxLoss">0</p>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="card history">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Issue</th>
+                    <th>Pred</th>
+                    <th>Actual</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+
+            <tbody id="historyBody"></tbody>
+
+        </table>
+
+    </div>
+
+    <div class="footer">
+        Auto fetch every IST xx:xx:01 sec
+    </div>
+
+</div>
+
+<script>
+
+const predictionEl = document.getElementById("prediction");
+const nextIssueEl = document.getElementById("nextIssue");
+const historyBody = document.getElementById("historyBody");
+
+let currentPrediction = null;
+let lastFetchedIssue = "";
+
+let wins = 0;
+let losses = 0;
+
+let currentLossStreak = 0;
+let maxLossStreak = 0;
+
+let historyData = [];
+
+/*
+==================================================
+HELPERS
+==================================================
+*/
+
+function shortIssue(issue){
+    return issue.slice(-5);
+}
+
+function getSize(num){
+
+    num = Number(num);
+
+    return num >= 5 ? "Big" : "Small";
+}
+
+/*
+==================================================
+SAFE NEXT ISSUE FIX
+NO NUMBER OVERFLOW BUG
+==================================================
+*/
+
+function nextIssueNumber(issue){
+
+    const prefix = issue.slice(0,-5);
+
+    const last5 = issue.slice(-5);
+
+    const next = (parseInt(last5) + 1)
+        .toString()
+        .padStart(5,"0");
+
+    return next;
+}
+
+/*
+==================================================
+MAIN STRATEGY
+==================================================
+*/
+
+function generatePrediction(list){
+
+    const sizes =
+        list.slice(0,10)
+        .map(x => getSize(x.number));
+
+    const last4 = sizes.slice(0,4);
+
+    /*
+    ==========================================
+    CHAOS DETECT
+    ==========================================
+    */
+
+    const shape = last4.join("");
+
+    if(
+        shape === "BigSmallBigSmall" ||
+        shape === "SmallBigSmallBig"
+    ){
+        return "WAIT";
+    }
+
+    /*
+    ==========================================
+    TREND
+    ==========================================
+    */
+
+    if(
+        last4.every(x => x === "Big")
+    ){
+
+        const bigCount =
+            sizes.filter(x => x==="Big").length;
+
+        if(bigCount >= 8){
+            return "Small";
+        }
+
+        return "Big";
+    }
+
+    if(
+        last4.every(x => x === "Small")
+    ){
+
+        const smallCount =
+            sizes.filter(x => x==="Small").length;
+
+        if(smallCount >= 8){
+            return "Big";
+        }
+
+        return "Small";
+    }
+
+    /*
+    ==========================================
+    IMBALANCE
+    ==========================================
+    */
+
+    const big =
+        sizes.filter(x => x==="Big").length;
+
+    const small =
+        sizes.filter(x => x==="Small").length;
+
+    if(big >= 7){
+        return "Small";
+    }
+
+    if(small >= 7){
+        return "Big";
+    }
+
+    /*
+    ==========================================
+    LAST 6 PRESSURE
+    ==========================================
+    */
+
+    const last6 = sizes.slice(0,6);
+
+    const recentBig =
+        last6.filter(x => x==="Big").length;
+
+    const recentSmall =
+        last6.filter(x => x==="Small").length;
+
+    if(recentBig >= 5){
+        return "Small";
+    }
+
+    if(recentSmall >= 5){
+        return "Big";
+    }
+
+    /*
+    ==========================================
+    FALLBACK
+    ==========================================
+    */
+
+    return sizes[0];
+}
+
+/*
+==================================================
+RENDER HISTORY
+==================================================
+*/
+
+function renderHistory(){
+
+    historyBody.innerHTML = "";
+
+    historyData
+    .slice(0,100)
+    .forEach(row => {
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${row.issue}</td>
+
+            <td class="${
+                row.prediction === "Big"
+                ? "big"
+                : "small"
+            }">
+                ${row.prediction}
+            </td>
+
+            <td class="${
+                row.actual === "Big"
+                ? "big"
+                : "small"
+            }">
+                ${row.actual}
+            </td>
+
+            <td class="${
+                row.result === "WIN"
+                ? "win"
+                : "loss"
+            }">
+                ${row.result}
+            </td>
+        `;
+
+        historyBody.appendChild(tr);
+    });
+}
+
+/*
+==================================================
+UPDATE STATS
+==================================================
+*/
+
+function updateStats(){
+
+    const total = wins + losses;
+
+    const acc =
+        total > 0
+        ? ((wins / total) * 100).toFixed(2)
+        : 0;
+
+    document.getElementById("wins").innerText = wins;
+    document.getElementById("losses").innerText = losses;
+    document.getElementById("accuracy").innerText = acc + "%";
+    document.getElementById("maxLoss").innerText = maxLossStreak;
+}
+
+/*
+==================================================
+FETCH API
+==================================================
+*/
+
+async function fetchHistoryData(){
+
+    const ts = Date.now();
+
+    const url =
+`https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?ts=${ts}`;
+
+    try{
+
+        const response = await fetch(url,{
+
+            method:"GET",
+
+            headers:{
+                "Accept":"application/json"
+            }
+
+        });
+
+        if(!response.ok){
+
+            throw new Error(
+                `Status ${response.status}`
+            );
+        }
+
+        const json = await response.json();
+
+        const list = json?.data?.list || [];
+
+        if(!list.length) return;
+
+        const latestIssue =
+            list[0].issueNumber;
+
+        /*
+        ======================================
+        PREVENT DUPLICATE FETCH
+        ======================================
+        */
+
+        if(latestIssue === lastFetchedIssue){
+            return;
+        }
+
+        /*
+        ======================================
+        CHECK PREVIOUS PREDICTION
+        ======================================
+        */
+
+        if(
+            currentPrediction &&
+            currentPrediction !== "WAIT"
+        ){
+
+            const actual =
+                getSize(list[0].number);
+
+            let result = "LOSS";
+
+            if(currentPrediction === actual){
+
+                wins++;
+                result = "WIN";
+
+                currentLossStreak = 0;
+
+            }else{
+
+                losses++;
+
+                currentLossStreak++;
+
+                if(
+                    currentLossStreak >
+                    maxLossStreak
+                ){
+                    maxLossStreak =
+                        currentLossStreak;
+                }
+            }
+
+            historyData.unshift({
+
+                issue:
+                    shortIssue(
+                        list[0].issueNumber
+                    ),
+
+                prediction:
+                    currentPrediction,
+
+                actual,
+
+                result
+            });
+
+            renderHistory();
+
+            updateStats();
+        }
+
+        /*
+        ======================================
+        GENERATE NEXT PREDICTION
+        ======================================
+        */
+
+        const prediction =
+            generatePrediction(list);
+
+        currentPrediction = prediction;
+
+        if(prediction === "WAIT"){
+
+            predictionEl.innerHTML =
+                `<span class="wait">WAIT</span>`;
+
+        }else{
+
+            predictionEl.innerHTML =
+                `<span class="${
+                    prediction==="Big"
+                    ? "big"
+                    : "small"
+                }">${prediction}</span>`;
+        }
+
+        /*
+        ======================================
+        FIXED NEXT ISSUE
+        ======================================
+        */
+
+        nextIssueEl.innerText =
+            nextIssueNumber(latestIssue);
+
+        lastFetchedIssue = latestIssue;
+
+        document.getElementById("status")
+        .innerText =
+            "Updated: " +
+            new Date().toLocaleTimeString();
+
+    }catch(err){
+
+        console.error(err);
+
+        document.getElementById("status")
+        .innerText =
+            "Fetch error...";
+    }
+}
+
+/*
+==================================================
+AUTO FETCH EXACTLY AT xx:xx:01
+==================================================
+*/
+
+function startScheduler(){
+
+    setInterval(()=>{
+
+        const now = new Date();
+
+        const sec = now.getSeconds();
+
+        if(sec === 1){
+
+            fetchHistoryData();
+        }
+
+    },250);
+}
+
+/*
+==================================================
+START
+==================================================
+*/
+
+fetchHistoryData();
+
+startScheduler();
+
+</script>
+
+</body>
+</html>

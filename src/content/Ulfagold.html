@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WinGo 30S (ULTRA GOld)</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --primary: #ff5722;
+            --big-color: #ff9800; /* Orange for Big */
+            --small-color: #2196f3; /* Blue for Small */
+            --win-color: #28a745;
+            --loss-color: #dc3545;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            color: var(--text-main);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        /* Header & Timer */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin: 0 0 10px 0;
+        }
+
+        .timer-box {
+            display: inline-block;
+            background: var(--text-main);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* Cards General */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .stat-box {
+            flex: 1;
+            text-align: center;
+            padding: 15px 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .stat-box .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .stat-box.win .value { color: var(--win-color); }
+        .stat-box.loss .value { color: var(--loss-color); }
+
+        /* Prediction Card */
+        .predict-card {
+            text-align: center;
+            border: 2px solid var(--primary);
+        }
+
+        .predict-card .issue {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .prediction-result {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pred-numbers {
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        .pred-size {
+            font-size: 1.4rem;
+            font-weight: bold;
+            padding: 5px 20px;
+            border-radius: 6px;
+            color: #fff;
+        }
+
+        .size-BIG { background-color: var(--big-color); }
+        .size-SMALL { background-color: var(--small-color); }
+
+        /* History Table */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-header, .history-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr 1fr;
+            text-align: center;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .history-header {
+            font-weight: bold;
+            color: var(--text-muted);
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 5px;
+        }
+
+        .history-row {
+            background: #fdfdfd;
+            padding: 10px 5px;
+            border-radius: 6px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .badge {
+            padding: 3px 6px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .status-WIN { color: var(--win-color); font-weight: bold; }
+        .status-LOSS { color: var(--loss-color); font-weight: bold; }
+
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Syncing Live Data...</div>
+
+    <div class="app-container">
+        <div class="header">
+            <h1>⏰ WinGo 30S Auto Predictor</h1>
+            <div class="timer-box" id="countdown">00:00</div>
+        </div>
+
+        <div class="stats-panel card">
+            <div class="stat-box win">
+                <div class="label">Max Win Streak</div>
+                <div class="value" id="maxWin">0</div>
+            </div>
+            <div class="stat-box loss">
+                <div class="label">Max Loss Streak</div>
+                <div class="value" id="maxLoss">0</div>
+            </div>
+        </div>
+
+        <div class="predict-card card">
+            <h3 class="card-title">Live Prediction</h3>
+            <div class="issue">Pending Period: <span id="pendingIssue">-----</span></div>
+            <div class="prediction-result" id="predictionResult">
+                <div class="pred-numbers" id="predNumbers">- , - , -</div>
+                <div class="pred-size size-BIG" id="predSize" style="background-color: #ccc;">WAITING</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Prediction History</h3>
+            <div class="history-list">
+                <div class="history-header">
+                    <div>Period</div>
+                    <div>Result</div>
+                    <div>Prediction</div>
+                    <div>Status</div>
+                </div>
+                <div id="historyBody">
+                    <!-- History rows will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // State Variables
+            let historyRecords = [];
+            let lastProcessedIssue = null;
+            let pendingPrediction = null;
+            
+            let stats = {
+                maxWin: 0,
+                maxLoss: 0,
+                currentStreak: 0,
+                currentStreakType: null
+            };
+
+            let isFirstLoad = true;
+            let lastFetchTime = 0;
+
+            // --- CORE PREDICTION LOGIC ---
+            function getPredictionForNext(draw) {
+                // Understand how it works logic:
+                // Takes the last drawn number + last digit of current issue period
+                const lastDigitOfIssue = parseInt(draw.issueNumber.slice(-1));
+                const lastDrawnNumber = parseInt(draw.number);
+                
+                // Calculate base target
+                const P = (lastDrawnNumber + lastDigitOfIssue) % 10;
+                
+                // Formatting requested: If P=2, show 1, 2, 3 (Handles 0-9 loop)
+                const numbers = [
+                    (P - 1 + 10) % 10,
+                    P,
+                    (P + 1) % 10
+                ];
+
+                // Wingo Standard Size Rule: 0-4 = SMALL, 5-9 = BIG
+                const size = P >= 5 ? 'BIG' : 'SMALL';
+
+                return { numbers, size };
+            }
+
+            function updateStats(resultType) {
+                if (stats.currentStreakType === resultType) {
+                    stats.currentStreak++;
+                } else {
+                    stats.currentStreak = 1;
+                    stats.currentStreakType = resultType;
+                }
+
+                if (stats.currentStreakType === 'WIN' && stats.currentStreak > stats.maxWin) {
+                    stats.maxWin = stats.currentStreak;
+                }
+                if (stats.currentStreakType === 'LOSS' && stats.currentStreak > stats.maxLoss) {
+                    stats.maxLoss = stats.currentStreak;
+                }
+            }
+
+            // --- DATA PROCESSING ---
+            function processData(list) {
+                if (isFirstLoad) {
+                    // Back-test the last 10 api results to instantly build history & stats!
+                    const reversedList = [...list].reverse();
+                    
+                    for (let i = 0; i < reversedList.length - 1; i++) {
+                        const currentDraw = reversedList[i];
+                        const nextDraw = reversedList[i + 1];
+
+                        const pred = getPredictionForNext(currentDraw);
+                        const actualNum = parseInt(nextDraw.number);
+                        const actualSize = actualNum >= 5 ? 'BIG' : 'SMALL';
+
+                        // Check Win Condition (Win if Size is correct OR if exact number matches)
+                        const isWin = (pred.size === actualSize) || pred.numbers.includes(actualNum);
+                        const resultType = isWin ? 'WIN' : 'LOSS';
+
+                        updateStats(resultType);
+
+                        historyRecords.unshift({
+                            issue: nextDraw.issueNumber.slice(-5),
+                            actualNum: actualNum,
+                            actualSize: actualSize,
+                            predNums: pred.numbers,
+                            predSize: pred.size,
+                            result: resultType
+                        });
+                    }
+
+                    document.getElementById('loading').style.display = 'none';
+                    isFirstLoad = false;
+                } else {
+                    // Normal Live Update
+                    const newestDraw = list[0];
+                    if (newestDraw.issueNumber === lastProcessedIssue) return; // Ignore duplicate
+
+                    // Evaluate our pending prediction
+                    if (pendingPrediction && pendingPrediction.targetIssue === newestDraw.issueNumber) {
+                        const actualNum = parseInt(newestDraw.number);
+                        const actualSize = actualNum >= 5 ? 'BIG' : 'SMALL';
+
+                        const isWin = (pendingPrediction.size === actualSize) || pendingPrediction.numbers.includes(actualNum);
+                        const resultType = isWin ? 'WIN' : 'LOSS';
+
+                        updateStats(resultType);
+
+                        historyRecords.unshift({
+                            issue: newestDraw.issueNumber.slice(-5),
+                            actualNum: actualNum,
+                            actualSize: actualSize,
+                            predNums: pendingPrediction.numbers,
+                            predSize: pendingPrediction.size,
+                            result: resultType
+                        });
+
+                        // Keep list neat (max 50)
+                        if (historyRecords.length > 50) historyRecords.pop();
+                    }
+                }
+
+                // Set up the next prediction
+                const newestDraw = list[0];
+                lastProcessedIssue = newestDraw.issueNumber;
+                
+                // Add 1 to issue string for Next Period Target
+                const nextIssueString = (BigInt(newestDraw.issueNumber) + 1n).toString();
+                const newPred = getPredictionForNext(newestDraw);
+
+                pendingPrediction = {
+                    targetIssue: nextIssueString,
+                    numbers: newPred.numbers,
+                    size: newPred.size
+                };
+
+                renderUI();
+            }
+
+            // --- UI RENDERING ---
+            function renderUI() {
+                // 1. Update Stats
+                document.getElementById('maxWin').innerText = stats.maxWin;
+                document.getElementById('maxLoss').innerText = stats.maxLoss;
+
+                // 2. Update Prediction Box
+                if (pendingPrediction) {
+                    document.getElementById('pendingIssue').innerText = pendingPrediction.targetIssue.slice(-5);
+                    document.getElementById('predNumbers').innerText = pendingPrediction.numbers.join(', ');
+                    
+                    const sizeEl = document.getElementById('predSize');
+                    sizeEl.innerText = pendingPrediction.size;
+                    sizeEl.className = `pred-size size-${pendingPrediction.size}`;
+                }
+
+                // 3. Update History Table
+                const historyBody = document.getElementById('historyBody');
+                historyBody.innerHTML = '';
+
+                historyRecords.forEach(record => {
+                    const row = document.createElement('div');
+                    row.className = 'history-row';
+                    
+                    // Actual Output formatter
+                    const actHtml = `<span style="font-weight:bold">${record.actualNum}</span> <br> <span class="badge size-${record.actualSize}" style="font-size:0.65rem">${record.actualSize.charAt(0)}</span>`;
+                    
+                    // Pred Output Formatter
+                    const predHtml = `<span style="color:#666">${record.predNums.join(',')}</span> <br> <span class="badge size-${record.predSize}" style="font-size:0.65rem">${record.predSize.charAt(0)}</span>`;
+
+                    row.innerHTML = `
+                        <div style="font-weight:bold; color:#555;">${record.issue}</div>
+                        <div>${actHtml}</div>
+                        <div>${predHtml}</div>
+                        <div class="status-${record.result}">${record.result}</div>
+                    `;
+                    historyBody.appendChild(row);
+                });
+            }
+
+            // --- API FETCHING & TIMER ---
+            async function fetchHistoryData() {
+                const ts = Date.now();
+                const url = `https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?ts=${ts}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: "GET",
+                        headers: { "Accept": "application/json" }
+                    });
+
+                    if (!response.ok) throw new Error(`Status: ${response.status}`);             
+                    const json = await response.json();
+
+                    if (json.code === 0 && json.data && json.data.list && json.data.list.length > 0) {
+                        processData(json.data.list);
+                    }
+                } catch (err) {
+                    console.error("Fetch Error:", err);
+                }
+            }
+
+            // Timer Loop - Controls Live Countdown & Accurate API Fetching
+            setInterval(() => {
+                const now = new Date();
+                const s = now.getSeconds();
+
+                // Countdown logic (30s game. Resets at 00 and 30)
+                let remaining = (30 - (s % 30)) % 30;
+                if(remaining === 0 && s !== 0 && s !== 30) remaining = 30; // visual tweak
+                
+                document.getElementById('countdown').innerText = `00:${remaining.toString().padStart(2, '0')}`;
+
+                // The Results arrive exactly shortly after :01 and :31. 
+                // We fetch exactly at :01, :03, :05 and :31, :33, :35 to ensure we catch it immediately.
+                const isFetchWindow = [1, 3, 5, 31, 33, 35].includes(s);
+                
+                if (isFetchWindow && (Date.now() - lastFetchTime > 1000)) {
+                    fetchHistoryData();
+                    lastFetchTime = Date.now();
+                }
+
+            }, 500);
+
+            // Initial Bootstrap
+            fetchHistoryData();
+
+        })();
+    </script>
+</body>
+</html>

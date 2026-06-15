@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WinGo 1M · Auto Predictor (Robust History)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0b1120 0%, #111827 100%);
+            margin: 0;
+            padding: 16px;
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(18, 25, 45, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(74, 144, 226, 0.25);
+        }
+
+        .prediction-main {
+            text-align: center;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border: 1px solid #334155;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: #2d3a5e;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: 600;
+            color: #b9c8ff;
+        }
+
+        .next-label {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-top: 12px;
+            color: #94a3b8;
+        }
+
+        .prediction-value {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            margin: 8px 0;
+            background: linear-gradient(135deg, #facc15, #ffb347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+        }
+
+        .issue-hint {
+            font-family: monospace;
+            font-size: 0.7rem;
+            background: #00000040;
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 30px;
+            margin-top: 6px;
+        }
+
+        .stats-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+
+        .stat-box {
+            background: #0f172a;
+            border-radius: 24px;
+            padding: 12px;
+            flex: 1;
+            text-align: center;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #facc15;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        button {
+            background: #1e293b;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 60px;
+            font-weight: 600;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        .btn-sound {
+            background: #2d3a5e;
+        }
+
+        .btn-sound.active {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .history-wrapper {
+            overflow-x: auto;
+            border-radius: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        th, td {
+            padding: 10px 6px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        th {
+            background: #0f172a;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        .win {
+            color: #4ade80;
+            font-weight: bold;
+        }
+
+        .loss {
+            color: #f87171;
+            font-weight: bold;
+        }
+
+        .badge-side {
+            background: #1e293b;
+            padding: 4px 10px;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 0.7rem;
+            display: inline-block;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #5b6e8c;
+            margin-top: 16px;
+        }
+        .pending-row {
+            opacity: 0.6;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card prediction-main">
+        <div class="badge">⚡ LIVE PREDICTION (IST :01 sec sync)</div>
+        <div class="next-label">🔮 Next Outcome →</div>
+        <div class="prediction-value" id="predictionDisplay">—</div>
+        <div class="issue-hint" id="nextIssueHint">waiting for data...</div>
+        <div style="display: flex; justify-content: center; gap: 12px; margin-top: 16px;">
+            <button id="soundToggleBtn" class="btn-sound active">🔊 SOUND ON</button>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-box"><div class="stat-number" id="accuracyStat">0%</div><div class="stat-label">Accuracy</div></div>
+            <div class="stat-box"><div class="stat-number" id="streakStat">0</div><div class="stat-label">Current Streak</div></div>
+            <div class="stat-box"><div class="stat-number" id="maxWinStat">0</div><div class="stat-label">Max Wins 🔥</div></div>
+            <div class="stat-box"><div class="stat-number" id="maxLossStat">0</div><div class="stat-label">Max Loss 💧</div></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span class="badge">📋 PREDICTION HISTORY (last 20 resolved)</span>
+            <span style="font-size: 0.7rem;">🔄 auto updates</span>
+        </div>
+        <div class="history-wrapper">
+            <table id="historyTable">
+                <thead>
+                    <tr><th>Issue</th><th>Prediction</th><th>Actual</th><th>Result</th></tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="4" style="text-align:center">loading history...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="footer-note">
+        ✅ Smart logic: window(6) + streak trap(≥3) + gravity override + volatility mode<br>
+        🕒 Fetches every minute at :01 second IST • beep on new prediction
+    </div>
+</div>
+
+<script>
+    // ---------- GLOBALS ----------
+    let allResults = [];           // { issueNumber, rawNumber, size } sorted asc
+    let completedPredictions = []; // { issueNumber, predictedSize, actualSize, result }
+    let currentPending = null;     // { predictedSize }  (no issue number yet)
+    
+    let soundEnabled = true;
+    let audioCtx = null;
+    let fetchIntervalId = null;
+    let lastProcessedIssue = null;   // latest issueNumber from API that we've incorporated
+    
+    // DOM elements
+    const predictionDisplay = document.getElementById('predictionDisplay');
+    const nextIssueHint = document.getElementById('nextIssueHint');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const accuracyStat = document.getElementById('accuracyStat');
+    const streakStat = document.getElementById('streakStat');
+    const maxWinStat = document.getElementById('maxWinStat');
+    const maxLossStat = document.getElementById('maxLossStat');
+    const historyBody = document.getElementById('historyBody');
+
+    // ---------- Helper: Number to Size (Small 0-4, Big 5-9) ----------
+    function numberToSize(num) {
+        const n = parseInt(num, 10);
+        return (n >= 0 && n <= 4) ? 'Small' : 'Big';
+    }
+
+    // ---------- BEEP sound (3 times) using Web Audio ----------
+    function playBeep() {
+        if (!soundEnabled) return;
+        try {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => beepSequence()).catch(e=>console.warn);
+            } else {
+                beepSequence();
+            }
+        } catch(e) { console.warn("beep error", e); }
+    }
+
+    function beepSequence() {
+        let count = 0;
+        function beep() {
+            if (count >= 3) return;
+            const oscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            oscillator.connect(gain);
+            gain.connect(audioCtx.destination);
+            oscillator.frequency.value = 880;
+            gain.gain.value = 0.2;
+            oscillator.type = 'sine';
+            oscillator.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.25);
+            oscillator.stop(audioCtx.currentTime + 0.25);
+            count++;
+            setTimeout(() => {
+                if (count < 3) beep();
+            }, 280);
+        }
+        beep();
+    }
+
+    // ---------- Advanced Prediction Logic (returns "Big" or "Small") ----------
+    function predictNextFromHistory(history) {
+        if (!history.length) return "Big";
+        const windowSize = Math.min(6, history.length);
+        const recent = history.slice(-windowSize);
+        const sizes = recent.map(r => r.size);
+        const numbers = recent.map(r => r.rawNumber);
+        
+        // Volatility mode
+        let altCount = 0;
+        for (let i = 1; i < sizes.length; i++) {
+            if (sizes[i] !== sizes[i-1]) altCount++;
+        }
+        if (sizes.length >= 4 && altCount >= 3) {
+            return sizes[sizes.length-1];
+        }
+        
+        // Trap detection: streak >=3
+        let streakSame = 1;
+        for (let i = sizes.length-1; i > 0; i--) {
+            if (sizes[i] === sizes[i-1]) streakSame++;
+            else break;
+        }
+        if (streakSame >= 3) {
+            return (sizes[sizes.length-1] === 'Big') ? 'Small' : 'Big';
+        }
+        
+        // Gravity override: last two Big and previous three Small => predict Small
+        if (numbers.length >= 5) {
+            const lastTwoBig = numbers.slice(-2).every(n => n >= 6);
+            const prevThreeSmall = numbers.slice(-5, -2).every(n => n <= 3);
+            if (lastTwoBig && prevThreeSmall) return 'Small';
+            
+            const lastTwoSmall = numbers.slice(-2).every(n => n <= 3);
+            const prevThreeBig = numbers.slice(-5, -2).every(n => n >= 6);
+            if (lastTwoSmall && prevThreeBig) return 'Big';
+        }
+        
+        // Majority
+        let bigCount = sizes.filter(s => s === 'Big').length;
+        let smallCount = sizes.length - bigCount;
+        if (bigCount > smallCount) return 'Big';
+        if (smallCount > bigCount) return 'Small';
+        return sizes[sizes.length-1];
+    }
+
+    // Update stats & table from completedPredictions
+    function updateStatsAndTable() {
+        // Accuracy
+        const total = completedPredictions.length;
+        const correct = completedPredictions.filter(p => p.result === 'WIN').length;
+        const accuracy = total === 0 ? 0 : (correct / total * 100).toFixed(1);
+        accuracyStat.innerText = total === 0 ? '0%' : `${accuracy}%`;
+        
+        // Current streak
+        let streak = 0;
+        for (let i = completedPredictions.length-1; i >= 0; i--) {
+            if (completedPredictions[i].result === 'WIN') streak++;
+            else break;
+        }
+        streakStat.innerText = streak;
+        
+        // Max consecutive win/loss
+        let maxWin = 0, maxLoss = 0, curWin = 0, curLoss = 0;
+        for (let p of completedPredictions) {
+            if (p.result === 'WIN') {
+                curWin++; curLoss = 0;
+                if (curWin > maxWin) maxWin = curWin;
+            } else {
+                curLoss++; curWin = 0;
+                if (curLoss > maxLoss) maxLoss = curLoss;
+            }
+        }
+        maxWinStat.innerText = maxWin;
+        maxLossStat.innerText = maxLoss;
+        
+        // Render table (last 20 completed, newest first)
+        const reversed = [...completedPredictions].reverse().slice(0, 20);
+        if (reversed.length === 0) {
+            historyBody.innerHTML = '<tr><td colspan="4" style="text-align:center">No predictions yet</td></tr>';
+            return;
+        }
+        let html = '';
+        for (let pred of reversed) {
+            const shortIssue = pred.issueNumber.slice(-5);
+            const resultClass = pred.result === 'WIN' ? 'win' : 'loss';
+            const resultSymbol = pred.result === 'WIN' ? '✅ WIN' : '❌ LOSS';
+            html += `<tr>
+                        <td>${shortIssue}</td>
+                        <td><span class="badge-side">${pred.predictedSize}</span></td>
+                        <td>${pred.actualSize}</td>
+                        <td class="${resultClass}">${resultSymbol}</td>
+                     </tr>`;
+        }
+        historyBody.innerHTML = html;
+    }
+
+    // Generate a new pending prediction based on current allResults
+    function generateNewPending() {
+        if (allResults.length === 0) {
+            currentPending = { predictedSize: 'Big' };
+        } else {
+            const historyForPred = allResults.map(r => ({ size: r.size, rawNumber: r.rawNumber }));
+            const nextPred = predictNextFromHistory(historyForPred);
+            currentPending = { predictedSize: nextPred };
+        }
+        // Update UI
+        predictionDisplay.innerText = currentPending.predictedSize;
+        if (allResults.length > 0) {
+            const lastIssue = allResults[allResults.length-1].issueNumber;
+            nextIssueHint.innerText = `Next issue ~${lastIssue.slice(-5)} → +1`;
+        } else {
+            nextIssueHint.innerText = `Awaiting data...`;
+        }
+        // Play beep for new prediction (only if not initial silent load)
+        // We'll trigger beep from outside when we actually create pending due to new data
+    }
+
+    // Process newly fetched results (in ascending order, oldest first)
+    // Returns true if any new result was added
+    function processNewResults(newResultsAsc) {
+        if (!newResultsAsc.length) return false;
+        let addedAny = false;
+        
+        for (let res of newResultsAsc) {
+            // Check if this issue already exists in allResults
+            if (allResults.some(r => r.issueNumber === res.issueNumber)) continue;
+            
+            // --- 1) If we have a pending prediction, it belongs to this issue (since it's the next one in sequence)
+            if (currentPending) {
+                const predicted = currentPending.predictedSize;
+                const actual = res.size;
+                const result = (predicted === actual) ? 'WIN' : 'LOSS';
+                completedPredictions.push({
+                    issueNumber: res.issueNumber,
+                    predictedSize: predicted,
+                    actualSize: actual,
+                    result: result
+                });
+                // Clear pending so we know it's resolved
+                currentPending = null;
+            } else {
+                // Should not happen normally, but if missing pending, we can back-predict? 
+                // For robustness, we could generate a fake prediction based on history before this result.
+                // But in live scenario pending always exists. We'll create a placeholder by using history before this result.
+                const historyBefore = [...allResults]; // results before this one
+                let predBack = 'Big';
+                if (historyBefore.length > 0) {
+                    const hist = historyBefore.map(r => ({ size: r.size, rawNumber: r.rawNumber }));
+                    predBack = predictNextFromHistory(hist);
+                }
+                const resultBack = (predBack === res.size) ? 'WIN' : 'LOSS';
+                completedPredictions.push({
+                    issueNumber: res.issueNumber,
+                    predictedSize: predBack,
+                    actualSize: res.size,
+                    result: resultBack
+                });
+            }
+            
+            // Add to allResults
+            allResults.push(res);
+            addedAny = true;
+        }
+        
+        // After processing all new results, sort allResults by issueNumber
+        allResults.sort((a,b) => a.issueNumber.localeCompare(b.issueNumber));
+        
+        // Re-generate pending prediction for the *next* issue (after the latest result)
+        if (allResults.length > 0) {
+            generateNewPending();
+            // Only play beep if we actually added new results (real new draw)
+            if (addedAny) {
+                playBeep();
+            }
+        }
+        
+        // Update stats and table
+        updateStatsAndTable();
+        return addedAny;
+    }
+
+    // ---------- Fetch from API and integrate ----------
+    async function fetchWinGoData() {
+        try {
+            const ts = Date.now();
+            const url = `https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?ts=${ts}`;
+            const response = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const json = await response.json();
+            if (json.code !== 0 || !json.data || !json.data.list) throw new Error("Invalid API response");
+            
+            let rawList = json.data.list;
+            // rawList from API: usually newest first? We need ascending order
+            const sortedAsc = [...rawList].sort((a,b) => a.issueNumber.localeCompare(b.issueNumber));
+            const mapped = sortedAsc.map(item => ({
+                issueNumber: item.issueNumber,
+                rawNumber: parseInt(item.number, 10),
+                size: numberToSize(item.number)
+            }));
+            if (mapped.length === 0) return;
+            
+            const latestIncoming = mapped[mapped.length-1].issueNumber;
+            if (lastProcessedIssue === latestIncoming) return; // no new data
+            
+            // Find new results since lastProcessedIssue
+            let startIdx = 0;
+            if (lastProcessedIssue) {
+                const existingIdx = mapped.findIndex(r => r.issueNumber === lastProcessedIssue);
+                if (existingIdx !== -1) startIdx = existingIdx + 1;
+                else startIdx = 0;
+            }
+            const newResults = mapped.slice(startIdx);
+            if (newResults.length === 0) return;
+            
+            // Update last processed
+            lastProcessedIssue = mapped[mapped.length-1].issueNumber;
+            
+            // Process the new results (which are in ascending order)
+            processNewResults(newResults);
+            
+        } catch (err) {
+            console.error("Fetch error", err);
+            nextIssueHint.innerText = "⚠️ API error, retrying...";
+        }
+    }
+    
+    // ---------- Schedule fetch at precise IST :01 second ----------
+    function scheduleAtSecond01() {
+        const now = new Date();
+        const seconds = now.getSeconds();
+        const msUntilNext01 = (60 - seconds + 1) * 1000 - now.getMilliseconds();
+        setTimeout(() => {
+            fetchWinGoData(); // first fetch
+            if (fetchIntervalId) clearInterval(fetchIntervalId);
+            fetchIntervalId = setInterval(() => {
+                fetchWinGoData();
+            }, 60000);
+        }, msUntilNext01);
+    }
+    
+    // ---------- Sound toggle & audio init ----------
+    function initSoundToggle() {
+        soundToggleBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundToggleBtn.innerHTML = "🔊 SOUND ON";
+                soundToggleBtn.classList.add('active');
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } else {
+                soundToggleBtn.innerHTML = "🔇 SOUND OFF";
+                soundToggleBtn.classList.remove('active');
+                if (audioCtx) audioCtx.suspend();
+            }
+        });
+    }
+    
+    function enableAudioOnFirstTouch() {
+        const enable = () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            } else if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }
+            document.removeEventListener('click', enable);
+            document.removeEventListener('touchstart', enable);
+        };
+        document.addEventListener('click', enable);
+        document.addEventListener('touchstart', enable);
+    }
+    
+    // Initial pending prediction without data
+    function initPending() {
+        currentPending = { predictedSize: 'Big' };
+        predictionDisplay.innerText = 'Big';
+        nextIssueHint.innerText = 'Waiting for first data...';
+    }
+    
+    // Start app
+    initPending();
+    initSoundToggle();
+    enableAudioOnFirstTouch();
+    scheduleAtSecond01();
+</script>
+</body>
+</html>

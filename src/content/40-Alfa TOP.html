@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  // Idempotency: skip if already initialized (e.g., server-side injection
+  // followed by client-side inject-javascript via the Bloks webview component).
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      p.timestamp = message.timestamp;
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0f14">
+<title>WINGO 30S - (40-Alfa TOP)</title>
+<style>
+:root{
+  --bg:#0a0f14;
+  --card:#141c24;
+  --green:#00c853;
+  --red:#ff3d00;
+  --text:#e6f1ff;
+  --muted:#8aa0b8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Helvetica,Arial,sans-serif;overscroll-behavior-y:contain}
+.top{position:sticky;top:0;z-index:50;background:rgba(10,15,20,.85);backdrop-filter:saturate(140%) blur(12px);border-bottom:1px solid rgba(255,255,255,.06)}
+.top-inner{max-width:480px;margin:0 auto;padding:12px;display:flex;align-items:center;justify-content:space-between;min-height:56px}
+.title{font-weight:800;letter-spacing:.4px;font-size:16px}
+.clock{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;color:var(--muted);background:#0d141c;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+.wrap{max-width:480px;margin:0 auto;padding:12px}
+.card{background:var(--card);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.04)}
+.pred-card{text-align:center;padding:32px 16px}
+#prediction{font-size:64px;font-weight:900;letter-spacing:1px;line-height:1;transition:transform .2s ease}
+#prediction.big{color:var(--green);text-shadow:0 0 24px rgba(0,200,83,.25)}
+#prediction.small{color:var(--red);text-shadow:0 0 24px rgba(255,61,0,.25)}
+.reason{margin-top:12px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600}
+.current{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cur-left .label{font-size:12px;color:var(--muted);font-weight:600}
+.cur-left .period{font-size:24px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.cur-right{text-align:right}
+.cur-right .number{font-size:34px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.size{margin-top:8px;display:inline-block;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.5px;border:1px solid}
+.size.big{background:rgba(0,200,83,.12);color:var(--green);border-color:rgba(0,200,83,.3)}
+.size.small{background:rgba(255,61,0,.12);color:var(--red);border-color:rgba(255,61,0,.3)}
+.stats-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.stats-title{font-weight:800;font-size:15px;letter-spacing:.3px}
+.btn-clear{min-height:44px;min-width:80px;padding:0 14px;border-radius:12px;background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.12);font-weight:700;font-size:13px;letter-spacing:.3px}
+.btn-clear:active{transform:scale(.96);background:rgba(255,255,255,.04)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#0a0f14;border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:14px 10px;text-align:center}
+.stat .v{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.stat .k{font-size:11px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+.hist-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.hist-list{max-height:520px;overflow:auto;margin:-4px -4px -8px;padding:0 4px}
+.hist{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.05);gap:8px}
+.hist:last-child{border-bottom:0}
+.hist .left{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;display:flex;align-items:center;gap:8px}
+.hist .left .p{width:22px;text-align:center;font-weight:900}
+.hist .left .p.big{color:var(--green)}
+.hist .left .p.small{color:var(--red)}
+.hist .left .arrow{opacity:.4}
+.hist .right{font-size:18px;width:28px;text-align:right}
+.badge{font-size:10px;padding:3px 6px;border-radius:6px;background:#0d141c;border:1px solid rgba(255,255,255,.08);color:var(--muted);font-weight:700;letter-spacing:.3px}
+.foot{padding:24px 0 40px;text-align:center;color:var(--muted);font-size:11px}
+.pulse{animation:pulse .4s ease}
+@keyframes pulse{0%{transform:scale(.96)}100%{transform:scale(1)}}
+@media (max-width:360px){
+  #prediction{font-size:56px}
+  .cur-left .period{font-size:22px}
+  .cur-right .number{font-size:30px}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="top-inner">
+    <div class="title">WINGO 30S - (40-Alfa TOP)</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card pred-card">
+    <div id="prediction" class="big">BIG</div>
+    <div class="reason">follow trend</div>
+  </div>
+
+  <div class="card current">
+    <div class="cur-left">
+      <div class="label">CURRENT PERIOD</div>
+      <div class="period" id="period">----</div>
+    </div>
+    <div class="cur-right">
+      <div class="number" id="number">-</div>
+      <div id="size" class="size big">BIG</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats-head">
+      <div class="stats-title">Stats</div>
+      <button id="clear" class="btn-clear">CLEAR</button>
+    </div>
+    <div class="grid">
+      <div class="stat"><div class="v" id="wins">0</div><div class="k">Wins</div></div>
+      <div class="stat"><div class="v" id="losses">0</div><div class="k">Losses</div></div>
+      <div class="stat"><div class="v" id="streak">0</div><div class="k">Streak</div></div>
+      <div class="stat"><div class="v" id="maxW">0</div><div class="k">Max Win</div></div>
+      <div class="stat"><div class="v" id="maxL">0</div><div class="k">Max Loss</div></div>
+      <div class="stat"><div class="v" id="acc">0%</div><div class="k">Accuracy</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hist-head">
+      <div class="stats-title">History (last 50)</div>
+      <div class="badge">NO SKIP</div>
+    </div>
+    <div id="history" class="hist-list"></div>
+  </div>
+
+  <div class="foot">Updates at :01 & :31 IST • Always follows last result</div>
+</div>
+
+<script>
+const API = 'https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=60&pageNo=1';
+const $ = id => document.getElementById(id);
+const sizeOf = n => Number(n) >= 5 ? 'BIG' : 'SMALL';
+
+let stats = JSON.parse(localStorage.getItem('wingo30s_stats') || '{"w":0,"l":0,"c":0,"maxW":0,"maxL":0,"total":0}');
+let lastEval = localStorage.getItem('wingo30s_lastEval') || '';
+let lastFetchSec = '';
+
+function istNow(){
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset()*60000;
+  return new Date(utc + 5.5*3600000);
+}
+function updateClock(){
+  const t = istNow();
+  const h = String(t.getHours()).padStart(2,'0');
+  const m = String(t.getMinutes()).padStart(2,'0');
+  const s = String(t.getSeconds()).padStart(2,'0');
+  $('clock').textContent = `${h}:${m}:${s} IST`;
+  const sec = s;
+  if((sec === '01' || sec === '31') && sec !== lastFetchSec){
+    lastFetchSec = sec;
+    fetchData();
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+async function fetchData(){
+  try{
+    const res = await fetch(API, {cache:'no-store', mode:'cors'});
+    const json = await res.json();
+    const list = json?.data?.list || [];
+    if(list.length < 2) return;
+
+    const current = list[0];
+    const prev = list[1];
+    const curNum = Number(current.number);
+    const curSize = sizeOf(curNum);
+
+    // current card
+    $('period').textContent = String(current.issueNumber).slice(-4);
+    $('number').textContent = curNum;
+    const sizeEl = $('size');
+    sizeEl.textContent = curSize;
+    sizeEl.className = 'size ' + (curSize === 'BIG' ? 'big' : 'small');
+
+    // prediction = always last size
+    const nextPred = curSize;
+    const predEl = $('prediction');
+    if(predEl.textContent !== nextPred){
+      predEl.classList.remove('pulse');
+      void predEl.offsetWidth;
+      predEl.classList.add('pulse');
+    }
+    predEl.textContent = nextPred;
+    predEl.className = nextPred === 'BIG' ? 'big' : 'small';
+
+    // evaluate previous prediction (for current period)
+    if(current.issueNumber !== lastEval){
+      if(lastEval !== ''){
+        const predictedForCurrent = sizeOf(Number(prev.number));
+        const isWin = predictedForCurrent === curSize;
+        stats.total++;
+        if(isWin){
+          stats.w++;
+          stats.c = stats.c > 0 ? stats.c + 1 : 1;
+          if(stats.c > stats.maxW) stats.maxW = stats.c;
+        }else{
+          stats.l++;
+          stats.c = stats.c < 0 ? stats.c - 1 : -1;
+          if(Math.abs(stats.c) > stats.maxL) stats.maxL = Math.abs(stats.c);
+        }
+        localStorage.setItem('wingo30s_stats', JSON.stringify(stats));
+      }
+      lastEval = current.issueNumber;
+      localStorage.setItem('wingo30s_lastEval', lastEval);
+    }
+
+    updateStats();
+    renderHistory(list);
+  }catch(e){
+    console.error('Fetch error', e);
+  }
+}
+
+function updateStats(){
+  $('wins').textContent = stats.w;
+  $('losses').textContent = stats.l;
+  $('streak').textContent = stats.c > 0 ? '+'+stats.c : stats.c;
+  $('maxW').textContent = stats.maxW;
+  $('maxL').textContent = stats.maxL;
+  const acc = stats.total ? Math.round((stats.w / stats.total) * 100) : 0;
+  $('acc').textContent = acc + '%';
+}
+
+function renderHistory(list){
+  const rows = [];
+  for(let i=0; i<Math.min(50, list.length-1); i++){
+    const item = list[i];
+    const prev = list[i+1];
+    const pred = sizeOf(Number(prev.number));
+    const actual = sizeOf(Number(item.number));
+    const win = pred === actual;
+    const period = String(item.issueNumber).slice(-4);
+    const pLetter = pred[0]; // B or S
+    rows.push(`
+      <div class="hist">
+        <div class="left">
+          #${period}
+          <span class="p ${pred==='BIG'?'big':'small'}">${pLetter}</span>
+          <span class="arrow">→</span>
+          <span>${item.number}</span>
+        </div>
+        <div class="right">${win ? '✅' : '❌'}</div>
+      </div>
+    `);
+  }
+  $('history').innerHTML = rows.join('');
+}
+
+$('clear').onclick = () => {
+  if(confirm('Reset all stats?')){
+    localStorage.clear();
+    stats = {w:0,l:0,c:0,maxW:0,maxL:0,total:0};
+    lastEval = '';
+    updateStats();
+    fetchData();
+  }
+};
+
+// initial
+updateStats();
+fetchData();
+setInterval(fetchData, 15000);
+</script>
+</body>
+</html>

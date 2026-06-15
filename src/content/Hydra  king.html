@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WinGo AI (HYDRA KING)</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: 'Quicksand', sans-serif; 
+    background: #0f081c; /* Deep Midnight Purple */
+    background-image: radial-gradient(circle at top right, #241142 0%, #0f081c 60%);
+    color: #e9d5ff; 
+    padding: 15px; 
+    font-size: 14px; 
+    min-height: 100vh;
+}
+.container { max-width: 1000px; margin: auto; }
+
+/* Panels & Headers */
+.header, .panel { 
+    background: #1a102e; /* Dark Panel Purple */
+    border: 2px solid #3b2359; 
+    border-radius: 24px; 
+    padding: 18px; 
+    margin-bottom: 15px; 
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); 
+}
+.header { text-align: center; border-bottom: 4px solid #6b21a8; }
+.header h1 { font-size: 24px; font-weight: 800; color: #d8b4fe; margin-bottom: 12px; text-shadow: 0 0 10px rgba(216, 180, 254, 0.3); }
+
+/* Status Bar */
+.status { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 700;}
+.status-item { 
+    display: flex; align-items: center; gap: 6px; 
+    background: #271644; padding: 6px 14px; 
+    border-radius: 20px; 
+    color: #c084fc;
+    border: 1px solid #4c287f;
+}
+.status-dot { width: 10px; height: 10px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px #34d399;}
+.status-dot.inactive { background: #fb7185; box-shadow: 0 0 10px #fb7185;}
+.countdown { color: #f472b6; font-size: 16px; font-weight: 800; }
+
+/* Grid Layout */
+.grid { display: grid; grid-template-columns: 380px 1fr; gap: 15px; }
+@media(max-width: 850px){ .grid { grid-template-columns: 1fr; } }
+
+.panel h2 { 
+    font-size: 16px; font-weight: 800; color: #d8b4fe; 
+    margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 2px dashed #4c287f; padding-bottom: 8px;
+}
+
+/* Prediction Box */
+.prediction-box { 
+    background: linear-gradient(135deg, #9333ea, #d946ef); 
+    color: white; border-radius: 20px; padding: 20px; 
+    text-align: center; transition: all 0.3s ease; 
+    box-shadow: 0 8px 25px rgba(147, 51, 234, 0.4);
+}
+.high-confidence { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3); }
+.medium-confidence { background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3); }
+.low-confidence { background: linear-gradient(135deg, #475569, #64748b); box-shadow: 0 8px 25px rgba(100, 116, 139, 0.3); }
+.defense-mode { background: linear-gradient(135deg, #be123c, #e11d48); border: 3px dashed #fda4af; animation: pulse 1.5s infinite; }
+
+.prediction-label { font-size: 12px; font-weight: 800; opacity: .9; letter-spacing: 2px; }
+.prediction-value { font-size: 36px; font-weight: 800; margin: 5px 0; text-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.confidence { font-size: 20px; font-weight: 800; margin-bottom: 10px; background: rgba(0,0,0,0.25); display: inline-block; padding: 4px 15px; border-radius: 20px;}
+.prediction-reason { font-size: 13px; font-weight: 700; line-height: 1.4; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px;}
+
+/* Cute Number Balls */
+.numbers-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+.number-box, .history-item { 
+    width: 38px; height: 38px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; 
+    font-weight: 800; font-size: 16px; color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.big { background: #ec4899; box-shadow: 0 0 10px rgba(236, 72, 153, 0.4); } /* Neon Pink */
+.small { background: #0ea5e9; box-shadow: 0 0 10px rgba(14, 165, 233, 0.4); } /* Neon Blue */
+.violet { border: 3px solid #d8b4fe; background: #7e22ce; } /* Deep Violet */
+
+/* Stats Grid */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-card { 
+    background: #25143d; border: 1px solid #4c287f; 
+    border-radius: 16px; padding: 12px; text-align: center; 
+}
+.stat-label { font-size: 12px; font-weight: 800; color: #c084fc; text-transform: uppercase;}
+.stat-value { font-size: 24px; font-weight: 800; color: #fff; margin-top: 5px; text-shadow: 0 0 8px rgba(255,255,255,0.2); }
+
+/* History Grids */
+.history-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+
+.prediction-history { max-height: 380px; overflow: auto; padding-right: 5px; }
+.prediction-record { 
+    background: #211338; border: 1px solid #3b2359; 
+    border-radius: 16px; padding: 12px 15px; margin-bottom: 10px; 
+    display: flex; justify-content: space-between; align-items: center; 
+    font-size: 14px; font-weight: 700;
+}
+.prediction-record.win { border-left: 6px solid #10b981; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); }
+.prediction-record.loss { border-left: 6px solid #f43f5e; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); }
+.record-result { font-size: 22px; font-weight: 800; color: #fff; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+.badge.win { background: #10b981; color: white; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);}
+.badge.loss { background: #f43f5e; color: white; box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);}
+
+/* AI Brain Styling */
+.ai-brain { background: #1d1033; border-radius: 16px; padding: 15px; font-size: 13px; border: 2px dashed #6b21a8; font-weight: 700; color: #e9d5ff;}
+.ai-brain .metric { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #3b2359; padding-bottom: 8px; }
+.ai-brain .metric:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.ai-brain .metric-val { color: #f472b6; font-weight: 800; }
+.ai-brain .trap-warning { color: #fda4af; text-align: center; margin-top: 10px; background: rgba(225, 29, 72, 0.2); padding: 8px; border-radius: 12px; border: 1px solid #e11d48; animation: pulse 2s infinite; }
+.ai-brain .trap-safe { color: #6ee7b7; text-align: center; margin-top: 10px; background: rgba(5, 150, 105, 0.2); padding: 8px; border-radius: 12px; border: 1px solid #059669; }
+
+/* Alerts */
+.alert-box { display: none; background: #3d2c0b; border: 1px solid #f59e0b; color: #fcd34d; padding: 12px; border-radius: 16px; margin-top: 15px; font-size: 14px; font-weight: 800; text-align: center; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+.alert-box.show { display: block; animation: popIn 0.3s ease; }
+
+@keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes popIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a102e; border-radius: 10px;}
+::-webkit-scrollbar-thumb { background: #4c287f; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #6b21a8; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>✨ WinGo AI Predictor ✨</h1>
+        <div class="status">
+            <div class="status-item">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                ⏳ <span class="countdown" id="countdown">60s</span>
+            </div>
+            <div class="status-item">
+                🌙 <span id="lastUpdate">Never</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div>
+            <div class="panel">
+                <h2>🔮 Next Prediction</h2>
+                <div id="currentPrediction">
+                    <div class="prediction-box">
+                        <div class="prediction-label">WAITING</div>
+                        <div class="prediction-value">--</div>
+                        <div class="confidence">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🧠 AI Brain Matrix</h2>
+                <div id="aiBrain" class="ai-brain">
+                    <div style="opacity:.6; text-align:center; color:#c084fc;">Analyzing dark patterns... 🐾</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📊 Session Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Accuracy</div>
+                        <div class="stat-value" id="accuracy">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Win/Loss</div>
+                        <div class="stat-value" id="winLoss">0/0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Win Streak</div>
+                        <div class="stat-value" id="maxWinStreak">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Loss Streak</div>
+                        <div class="stat-value" id="maxLossStreak">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="panel">
+                <h2>📜 Recent Results</h2>
+                <div class="history-grid" id="historyGrid"></div>
+            </div>
+            <div class="panel">
+                <h2>📋 Prediction History</h2>
+                <div class="prediction-history" id="predictionHistory">
+                    <div style="opacity:.6; text-align:center; padding:20px; color:#c084fc;">No predictions yet 💤</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert-box" id="alertBox">
+        <div id="alertMessage"></div>
+    </div>
+</div>
+
+<script>
+const CONFIG = {
+    API_URL: 'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
+    POLL_INTERVAL: 4000, 
+    MIN_CONFIDENCE: 65
+};
+
+let gameHistory = []; 
+let gameIssues = [];  
+let predictionHistory = [];
+let lastPrediction = null;
+
+let stats = {
+    total: 0, win: 0, loss: 0,
+    maxWinStreak: 0, maxLossStreak: 0,
+    current: 0, type: null
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchData();
+    startCountdown();
+    setInterval(fetchData, CONFIG.POLL_INTERVAL);
+});
+
+function startCountdown() {
+    setInterval(() => {
+        const now = new Date();
+        const sec = 60 - now.getSeconds();
+        document.getElementById('countdown').textContent = (sec === 60 ? 60 : sec) + 's';
+    }, 1000);
+}
+
+async function fetchData() {
+    try {
+        const res = await fetch(CONFIG.API_URL + '?t=' + Date.now());
+        const data = await res.json();
+
+        if (data.code === 0 && data.data.list.length > 0) {
+            let apiList = data.data.list.map(item => ({
+                issue: String(item.issueNumber || item.issue || item.period || item.id || item.time || ''),
+                num: parseInt(item.number)
+            }));
+            apiList.reverse(); 
+
+            if (gameIssues.length === 0) {
+                gameIssues = apiList.map(i => i.issue);
+                gameHistory = apiList.map(i => i.num);
+            } else {
+                let lastKnownIssue = gameIssues[gameIssues.length - 1];
+                let lastKnownNum = gameHistory[gameHistory.length - 1];
+                let newDraws = [];
+                
+                if (lastKnownIssue && lastKnownIssue !== "undefined" && lastKnownIssue !== "") {
+                    let lastKnownIdx = apiList.findIndex(i => i.issue === lastKnownIssue);
+                    if (lastKnownIdx !== -1 && lastKnownIdx < apiList.length - 1) {
+                        newDraws = apiList.slice(lastKnownIdx + 1);
+                    } else if (lastKnownIdx === -1) {
+                        let newestApi = apiList[apiList.length - 1];
+                        if (newestApi.issue !== lastKnownIssue) newDraws = [newestApi];
+                    }
+                } else {
+                    let lastKnownIdx = apiList.map(i => i.num).lastIndexOf(lastKnownNum);
+                    if (lastKnownIdx !== -1 && lastKnownIdx < apiList.length - 1) {
+                        newDraws = apiList.slice(lastKnownIdx + 1);
+                    } else if (lastKnownIdx === -1) {
+                        let newestApi = apiList[apiList.length - 1];
+                        if (newestApi.num !== lastKnownNum) newDraws = [newestApi];
+                    }
+                }
+
+                for (let draw of newDraws) {
+                    if (lastPrediction && lastPrediction.prediction !== 'WAIT') checkPrediction(draw.num);
+                    gameIssues.push(draw.issue);
+                    gameHistory.push(draw.num);
+                }
+            }
+
+            if (gameHistory.length > 500) {
+                gameHistory = gameHistory.slice(-500);
+                gameIssues = gameIssues.slice(-500);
+            }
+
+            updateHistory();
+            
+            const prediction = generatePrediction(gameHistory);
+            lastPrediction = prediction;
+            displayPrediction(prediction);
+
+            document.getElementById('statusText').textContent = 'Live';
+            document.getElementById('statusDot').classList.remove('inactive');
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+    } catch (e) {
+        document.getElementById('statusText').textContent = 'Network Error';
+        document.getElementById('statusDot').classList.add('inactive');
+        console.error(e);
+    }
+}
+
+function generatePrediction(history) {
+    if (history.length < 5) {
+        return { prediction: 'WAIT', confidence: 0, reason: 'Warming up...', numbers: [], models: 'Baseline', streak: 0, chop: 0, consecutiveLosses: 0, isDefense: false };
+    }
+
+    const seq = history.map(n => n >= 5 ? 'B' : 'S');
+    const lastType = seq[seq.length - 1];
+    
+    let streak = 1;
+    for (let i = seq.length - 2; i >= 0; i--) {
+        if (seq[i] === lastType) streak++; else break;
+    }
+
+    let chopCount = 0;
+    for (let i = seq.length - 1; i >= Math.max(1, seq.length - 5); i--) {
+        if (seq[i] !== seq[i-1]) chopCount++;
+    }
+    const isChopping = chopCount >= 3; 
+
+    let nGramPred = null;
+    let nGramConf = 0;
+    
+    if (seq.length >= 4) {
+        const g3 = seq.slice(-3).join('');
+        let g3Stats = { B: 0, S: 0 };
+        for (let i = 3; i < seq.length - 1; i++) {
+            if (seq.slice(i-3, i).join('') === g3) {
+                if (seq[i] === 'B') g3Stats.B++; else g3Stats.S++;
+            }
+        }
+        
+        if (g3Stats.B + g3Stats.S >= 2) {
+            const diff = Math.abs(g3Stats.B - g3Stats.S);
+            const total = g3Stats.B + g3Stats.S;
+            if (diff / total >= 0.6) { 
+                nGramPred = g3Stats.B > g3Stats.S ? 'BIG' : 'SMALL';
+                nGramConf = (Math.max(g3Stats.B, g3Stats.S) / total) * 100;
+            }
+        }
+    }
+
+    if (!nGramPred && seq.length >= 3) {
+        const g2 = seq.slice(-2).join('');
+        let g2Stats = { B: 0, S: 0 };
+        for (let i = 2; i < seq.length - 1; i++) {
+            if (seq.slice(i-2, i).join('') === g2) {
+                if (seq[i] === 'B') g2Stats.B++; else g2Stats.S++;
+            }
+        }
+        if (g2Stats.B + g2Stats.S >= 3) {
+            const diff = Math.abs(g2Stats.B - g2Stats.S);
+            const total = g2Stats.B + g2Stats.S;
+            if (diff / total >= 0.6) {
+                nGramPred = g2Stats.B > g2Stats.S ? 'BIG' : 'SMALL';
+                nGramConf = (Math.max(g2Stats.B, g2Stats.S) / total) * 100;
+            }
+        }
+    }
+
+    let consecutiveLosses = 0;
+    for(let i=0; i < predictionHistory.length; i++) {
+        if(!predictionHistory[i].win) consecutiveLosses++;
+        else break; 
+    }
+
+    let finalPred = null;
+    let baseConf = 50;
+    let reason = "";
+    let models = [];
+    let isDefense = false;
+
+    if (consecutiveLosses >= 2) {
+        const last6 = seq.slice(-6);
+        const bCount = last6.filter(x => x === 'B').length;
+        finalPred = bCount >= 3 ? 'SMALL' : 'BIG'; 
+        baseConf = 45; 
+        reason = "⚠️ DEFENSE MODE: PRNG Noise Detected";
+        models.push("Mean Reversion");
+        isDefense = true;
+    } 
+    else if (streak >= 3) {
+        finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+        baseConf = 65 + (streak * 5); 
+        reason = `Streak Breaker (${streak}x)`;
+        models.push("Streak Breaker");
+    } 
+    else if (isChopping) {
+        finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+        baseConf = 72;
+        reason = "Chop Rider (Alternating)";
+        models.push("Chop Rider");
+    } 
+    else if (nGramPred) {
+        finalPred = nGramPred;
+        baseConf = nGramConf;
+        reason = `Conflict-Free N-Gram (${nGramConf.toFixed(0)}%)`;
+        models.push("N-Gram");
+    } 
+    else {
+        finalPred = lastType === 'B' ? 'SMALL' : 'BIG';
+        baseConf = 55;
+        reason = "Baseline Reversion";
+        models.push("Baseline");
+    }
+
+    baseConf -= (consecutiveLosses * 12);
+    
+    let confidence = Math.round(Math.max(40, Math.min(88, baseConf)));
+
+    return {
+        prediction: finalPred,
+        confidence: confidence,
+        reason: reason,
+        numbers: finalPred === 'BIG' ? [5,6,7,8,9] : [0,1,2,3,4],
+        models: models.join(', '),
+        streak: streak,
+        chop: chopCount,
+        consecutiveLosses: consecutiveLosses,
+        isDefense: isDefense
+    };
+}
+
+function displayPrediction(pred) {
+    if (pred.prediction === 'WAIT') {
+        document.getElementById('currentPrediction').innerHTML = `
+            <div class="prediction-box" style="background:#271644; color:#d8b4fe; border: 1px dashed #4c287f;">
+                <div class="prediction-label">WAITING 🎀</div>
+                <div class="prediction-value">--</div>
+                <div class="confidence" style="color:#e9d5ff; background:#3b2359;">0%</div>
+                <div class="prediction-reason" style="background:rgba(0,0,0,0.3);">${pred.reason}</div>
+            </div>
+        `;
+        document.getElementById('aiBrain').innerHTML = `<div style="opacity:.6; text-align:center; color:#c084fc;">Collecting baseline data... 🧸</div>`;
+        return;
+    }
+
+    let cls = '';
+    if (pred.isDefense) cls = 'defense-mode';
+    else if (pred.confidence >= 75) cls = 'high-confidence';
+    else if (pred.confidence >= 60) cls = 'medium-confidence';
+    else cls = 'low-confidence';
+    
+    const nums = pred.numbers.map(n => {
+        const type = n >= 5 ? 'big' : 'small';
+        const violet = [0, 5].includes(n) ? 'violet' : '';
+        return `<div class="number-box ${type} ${violet}">${n}</div>`;
+    }).join('');
+
+    document.getElementById('currentPrediction').innerHTML = `
+        <div class="prediction-box ${cls}">
+            <div class="prediction-label">✨ PREDICTION ✨</div>
+            <div class="prediction-value">${pred.prediction}</div>
+            <div class="confidence">${pred.confidence}% CONFIDENCE</div>
+            <div class="prediction-reason">${pred.reason}</div>
+            <div class="numbers-grid">${nums}</div>
+        </div>
+    `;
+
+    document.getElementById('aiBrain').innerHTML = `
+        <div class="metric"><span>🔥 Streak:</span> <span class="metric-val">${pred.streak} Draws</span></div>
+        <div class="metric"><span>🌊 Chop:</span> <span class="metric-val">${pred.chop} Alternations</span></div>
+        <div class="metric"><span>⚠️ Misses:</span> <span class="metric-val" style="color: ${pred.consecutiveLosses > 0 ? '#fb7185' : '#34d399'}">${pred.consecutiveLosses}</span></div>
+        <div class="metric"><span>🧠 Model:</span> <span class="metric-val">${pred.models}</span></div>
+        ${pred.isDefense ? `<div class="trap-warning">🛡️ CHILL MODE: PAUSE BETTING</div>` : `<div class="trap-safe">✅ CLEAR SIGNAL: Safe to Play 💖</div>`}
+    `;
+
+    if (pred.confidence >= CONFIG.MIN_CONFIDENCE && !pred.isDefense) showAlert(pred);
+}
+
+function updateHistory() {
+    const last24 = gameHistory.slice(-24); // Show a few more on the grid
+    document.getElementById('historyGrid').innerHTML = last24.map(n => {
+        const bg = n >= 5 ? '#ec4899' : '#0ea5e9'; // Pink / Blue
+        const border = [0, 5].includes(n) ? 'border: 3px solid #d8b4fe; background: #7e22ce;' : ''; // Violet override
+        return `<div class="history-item" style="background:${bg}; ${border}">${n}</div>`;
+    }).join('');
+}
+
+function checkPrediction(actual) {
+    if (!lastPrediction || lastPrediction.prediction === 'WAIT' || lastPrediction.reason === 'Warming up...') return;
+
+    const actualType = actual >= 5 ? 'BIG' : 'SMALL';
+    const win = actualType === lastPrediction.prediction;
+
+    stats.total++;
+
+    if (win) {
+        stats.win++;
+        stats.current = stats.type === 'win' ? stats.current + 1 : 1;
+        stats.type = 'win';
+        stats.maxWinStreak = Math.max(stats.maxWinStreak, stats.current);
+    } else {
+        stats.loss++;
+        stats.current = stats.type === 'loss' ? stats.current + 1 : 1;
+        stats.type = 'loss';
+        stats.maxLossStreak = Math.max(stats.maxLossStreak, stats.current);
+    }
+
+    updateStats();
+
+    predictionHistory.unshift({
+        pred: lastPrediction.prediction, actual, actualType, win,
+        conf: lastPrediction.confidence, time: new Date().toLocaleTimeString()
+    });
+
+    predictionHistory = predictionHistory.slice(0, 40);
+    updatePredictionHistory();
+}
+
+function updateStats() {
+    const acc = stats.total ? ((stats.win / stats.total) * 100).toFixed(1) : 0;
+    document.getElementById('accuracy').textContent = acc + '%';
+    document.getElementById('winLoss').textContent = `${stats.win}/${stats.loss}`;
+    document.getElementById('maxWinStreak').textContent = stats.maxWinStreak;
+    document.getElementById('maxLossStreak').textContent = stats.maxLossStreak;
+}
+
+function updatePredictionHistory() {
+    document.getElementById('predictionHistory').innerHTML = predictionHistory.map(r => `
+        <div class="prediction-record ${r.win ? 'win' : 'loss'}">
+            <div>
+                <div style="font-weight: 800; color: #fff;">${r.pred}</div>
+                <div style="color: #c084fc; font-size:11px;">${r.conf}% Conf</div>
+            </div>
+            <div class="record-result">${r.actual}</div>
+            <div class="badge ${r.win ? 'win' : 'loss'}">${r.win ? 'WIN 🎉' : 'LOSS 💔'}</div>
+        </div>
+    `).join('');
+}
+
+function showAlert(pred) {
+    const box = document.getElementById('alertBox');
+    document.getElementById('alertMessage').innerHTML = `🌙 <b>${pred.prediction}</b> is looking good! (${pred.confidence}%)`;
+    box.classList.add('show');
+    setTimeout(() => { box.classList.remove('show'); }, 4000);
+}
+</script>
+
+</body>
+</html>

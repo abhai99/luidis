@@ -12,6 +12,7 @@ import { AgniVIP } from '@/components/tools/AgniVIP';
 import { UltraGold } from '@/components/tools/UltraGold';
 import { FortyAlfaTop } from '@/components/tools/FortyAlfaTop';
 import { HydraKing } from '@/components/tools/HydraKing';
+import { ArdinoMax } from '@/components/tools/ArdinoMax';
 import { toast } from 'sonner';
 
 const ContentPage = () => {
@@ -78,7 +79,7 @@ const ContentPage = () => {
 
     // Execute custom scripts if raw HTML content is rendered
     useEffect(() => {
-        if (!content || ['1', '2', '3', '4', '5'].includes(id || '')) return;
+        if (!content || ['1', '2', '3', '4', '5', '6'].includes(id || '')) return;
 
         const container = document.getElementById('content-container');
         if (!container) return;
@@ -113,7 +114,7 @@ const ContentPage = () => {
         return null; // Redirecting...
     }
 
-    if (!content && !['1', '2', '3', '4', '5'].includes(id || '')) {
+    if (!content && !['1', '2', '3', '4', '5', '6'].includes(id || '')) {
         return (
             <div className="min-h-screen bg-[#050505] pt-32 px-4 text-center text-white">
                 <Navbar />
@@ -126,15 +127,9 @@ const ContentPage = () => {
     const renderTool = () => {
         switch (id) {
             case '1':
-                return <EightVoteAI />;
-            case '2':
-                return <AgniVIP />;
-            case '3':
-                return <UltraGold />;
-            case '4':
-                return <FortyAlfaTop />;
-            case '5':
                 return <HydraKing />;
+            case '2':
+                return <ArdinoMax />;
             default:
                 return (
                     <div
@@ -151,11 +146,8 @@ const ContentPage = () => {
             {/* Minimal Sticky Header for App feel */}
             <div className="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-zinc-900 px-4 h-10 flex items-center justify-center font-sans">
                 <h1 className="text-sm font-black text-center truncate text-zinc-100 uppercase tracking-widest">
-                    {id === '1' ? '80-vote AI' : 
-                     id === '2' ? 'Agni VIP' : 
-                     id === '3' ? 'ULTRA GOld' : 
-                     id === '4' ? '40-Alfa TOP' : 
-                     id === '5' ? 'HYDRA KING' : 
+                    {id === '1' ? 'HYDRA KING' : 
+                     id === '2' ? 'ARDINO MAX' : 
                      title || 'Content'}
                 </h1>
             </div>

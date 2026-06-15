@@ -184,44 +184,89 @@
   }
 
   .animate-slide-up {
-    animation: slideUp 0.6s ease-out;
+    animation: slideUp 0.6s ease-out both;
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.8s ease-out;
+    animation: fadeIn 0.8s ease-out both;
   }
+
+  /* Dashboard entrance animations */
+  .animate-slide-down {
+    animation: slideDown 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-pop-in {
+    animation: popIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-rise {
+    animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-shimmer-once {
+    position: relative;
+    overflow: hidden;
+  }
+  .animate-shimmer-once::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+    animation: shimmerSlide 1.6s ease-out 0.5s 1;
+    pointer-events: none;
+  }
+
+  .animate-glow-pulse {
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+
+  /* Stagger delay helpers */
+  .delay-0   { animation-delay: 0ms; }
+  .delay-80  { animation-delay: 80ms; }
+  .delay-160 { animation-delay: 160ms; }
+  .delay-240 { animation-delay: 240ms; }
+  .delay-320 { animation-delay: 320ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
 }
 
 @keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-20px);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-20px); }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmerSlide {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(220%); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0px 0px rgba(139,92,246,0); }
+  50%       { box-shadow: 0 0 22px 6px rgba(139,92,246,0.22); }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
